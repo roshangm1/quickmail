@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { disablePushForCurrentAccount } from '$lib/push-client';
 	import { t } from '$lib/i18n';
+	import { withMailboxFilter } from '$lib/mail/folders';
 	import type { ThemeShellProps } from '$lib/ui-theme/types';
 	import Tooltip from '$lib/components/Tooltip.svelte';
 	import AccountHeader from './AccountHeader.svelte';
@@ -124,7 +125,7 @@
 
 	function closeCompose() {
 		if (pathname === '/compose') {
-			void goto('/inbox');
+			void goto(withMailboxFilter('/inbox', $page.url.searchParams));
 			return;
 		}
 		const url = new URL($page.url);
@@ -220,7 +221,7 @@
 			chord = '';
 			if (href) {
 				event.preventDefault();
-				void goto(href);
+				void goto(href.startsWith('/settings') ? href : withMailboxFilter(href, $page.url.searchParams));
 			}
 			return;
 		}
@@ -268,7 +269,13 @@
 		<nav class="z-nav">
 			{#if settings}
 				{#each settingsNav as item (item.href)}
-					<a href={item.href} class="z-nav-link" class:active={isActive(item.href)}>
+					<a
+						href={item.href.startsWith('/settings') || item.href.startsWith('/admin')
+							? item.href
+							: withMailboxFilter(item.href, $page.url.searchParams)}
+						class="z-nav-link"
+						class:active={isActive(item.href)}
+					>
 						<Icon name={item.icon} size={16} />
 						<span>{item.label}</span>
 					</a>
@@ -286,7 +293,7 @@
 								stretch
 							>
 								<a
-									href={item.href}
+									href={withMailboxFilter(item.href, $page.url.searchParams)}
 									class="z-nav-link"
 									class:active={isActive(item.href)}
 									aria-label={collapsed && !mobileOpen ? item.label : undefined}
@@ -342,13 +349,13 @@
 
 	<nav class="z-mobile-nav">
 		<Tooltip text={t('nav.inbox')} side="top">
-			<a href="/inbox" aria-label={t('nav.inbox')}><Icon name="Inbox" size={18} /></a>
+			<a href={withMailboxFilter('/inbox', $page.url.searchParams)} aria-label={t('nav.inbox')}><Icon name="Inbox" size={18} /></a>
 		</Tooltip>
 		<Tooltip text={t('nav.compose')} side="top">
 			<button type="button" aria-label={t('nav.compose')} onclick={openCompose}><Icon name="PencilCompose" size={16} /></button>
 		</Tooltip>
 		<Tooltip text={t('nav.sent')} side="top">
-			<a href="/sent" aria-label={t('nav.sent')}><Icon name="Plane2" size={18} /></a>
+			<a href={withMailboxFilter('/sent', $page.url.searchParams)} aria-label={t('nav.sent')}><Icon name="Plane2" size={18} /></a>
 		</Tooltip>
 		<Tooltip text={t('nav.settings')} side="top">
 			<a href="/settings/general" aria-label={t('nav.settings')}><Icon name="SettingsGear" size={18} /></a>

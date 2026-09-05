@@ -8,6 +8,8 @@
 	import { requestSkipViewTransition } from '$lib/app-chrome';
 	import { APP_NAME } from '$lib/constants';
 	import { t } from '$lib/i18n';
+	import { withMailboxFilter } from '$lib/mail/folders';
+	import { page } from '$app/stores';
 	import type { OutboundAttachmentInput } from '$lib/types';
 	import type { PageData } from './$types';
 
@@ -83,16 +85,16 @@
 			return;
 		}
 		requestSkipViewTransition();
-		await goto(draftId ? '/drafts' : '/inbox');
+		await goto(withMailboxFilter(draftId ? '/drafts' : '/inbox', $page.url.searchParams));
 	}
 
 	async function discardDraft() {
 		if (!draftId) {
-			window.location.href = '/inbox';
+			window.location.href = withMailboxFilter('/inbox', $page.url.searchParams);
 			return;
 		}
 		await fetch(`/api/drafts/${draftId}`, { method: 'DELETE' });
-		window.location.href = '/drafts';
+		window.location.href = withMailboxFilter('/drafts', $page.url.searchParams);
 	}
 
 	async function submit(event: SubmitEvent) {

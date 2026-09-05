@@ -6,6 +6,7 @@
 	import DomainSwitcher from './DomainSwitcher.svelte';
 	import { APP_NAME } from '$lib/constants';
 	import { t } from '$lib/i18n';
+	import { withMailboxFilter } from '$lib/mail/folders';
 	import type { Domain, MailAddress, MailboxCounts } from '$lib/types';
 
 	let {
@@ -71,7 +72,7 @@
 
 <aside class="sidebar" class:collapsed>
 	<div class="sidebar-top">
-		<a href="/inbox" class="brand" title={APP_NAME}>
+		<a href={withMailboxFilter('/inbox', $page.url.searchParams)} class="brand" title={APP_NAME}>
 			<Logo size={30} />
 			{#if !collapsed}<span class="brand-name">{APP_NAME}</span>{/if}
 		</a>
@@ -85,7 +86,7 @@
 	<nav class="nav">
 		{#each mailboxes as item (item.href)}
 			<a
-				href={item.href}
+				href={withMailboxFilter(item.href, $page.url.searchParams)}
 				class="nav-link"
 				class:active={isActive(item.href)}
 				title={collapsed ? item.label : undefined}

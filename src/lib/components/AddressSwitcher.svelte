@@ -48,7 +48,11 @@
 				: accountName || t('account.account')
 	);
 	const triggerSubtitle = $derived(
-		active ? mailboxSubtitle(active) ?? (viewingAll && addresses.length > 1 ? active.address : null) : null
+		viewingAll && addresses.length > 1
+			? t('account.allMailboxesHint')
+			: active
+				? mailboxSubtitle(active)
+				: null
 	);
 	const triggerInitials = $derived(
 		active ? mailboxInitials(active) : accountName.slice(0, 2).toUpperCase() || '?'

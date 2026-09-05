@@ -10,6 +10,7 @@
 	import { formatRelativeDate } from '$lib/utils/date';
 	import { haptic, isPrimaryTab } from '$lib/app-chrome';
 	import { plural, t } from '$lib/i18n';
+	import { withMailboxFilter } from '$lib/mail/folders';
 	import type {
 		MailAddress,
 		MailboxFilters,
@@ -117,7 +118,8 @@
 
 	/** Rows carry the newest message; opening it opens the whole conversation. */
 	function href(thread: ThreadSummary): string {
-		return thread.is_draft ? `/compose?draft=${thread.latest_id}` : `/mail/${thread.latest_id}`;
+		const path = thread.is_draft ? `/compose?draft=${thread.latest_id}` : `/mail/${thread.latest_id}`;
+		return withMailboxFilter(path, $currentPage.url.searchParams);
 	}
 
 	function toggle(id: string) {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { participantName, viewFromLocation } from '$lib/mail/folders';
+	import { participantName, viewFromLocation, withMailboxFilter } from '$lib/mail/folders';
 	import { t } from '$lib/i18n';
 	import type { MailboxPage, ThreadSummary } from '$lib/types';
 	import Icon from '../icons/Icon.svelte';
@@ -73,9 +73,18 @@
 
 	function run(item: NavItem | ResultItem) {
 		if (item.kind === 'nav') {
-			void goto(item.href);
+			void goto(
+				item.href.startsWith('/settings')
+					? item.href
+					: withMailboxFilter(item.href, $page.url.searchParams)
+			);
 		} else {
-			void goto(`/inbox?thread=${encodeURIComponent(item.thread.latest_id)}`);
+			void goto(
+				withMailboxFilter(
+					`/inbox?thread=${encodeURIComponent(item.thread.latest_id)}`,
+					$page.url.searchParams
+				)
+			);
 		}
 		onClose();
 	}

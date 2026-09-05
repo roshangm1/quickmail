@@ -56,6 +56,19 @@ export function folderPath(view: MailboxView): string {
 	return FOLDER_PATH[view];
 }
 
+/**
+ * Keep the selected mailbox (`?address=`) when moving between folders.
+ * Tapping Inbox must not clear an account filter.
+ */
+export function withMailboxFilter(href: string, search: URLSearchParams): string {
+	const address = search.get('address')?.trim();
+	if (!address) return href;
+
+	const url = new URL(href, 'https://quickinbox.local');
+	url.searchParams.set('address', address);
+	return `${url.pathname}${url.search}`;
+}
+
 export function mailboxViewForEmail(email: {
 	deleted_at: string | null;
 	archived_at: string | null;

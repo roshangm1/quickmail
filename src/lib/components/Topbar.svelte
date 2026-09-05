@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { haptic } from '$lib/app-chrome';
 	import { t } from '$lib/i18n';
+	import { withMailboxFilter } from '$lib/mail/folders';
 	import AddressSwitcher from './AddressSwitcher.svelte';
 	import Icon from './Icon.svelte';
 	import LocaleSwitcher from './LocaleSwitcher.svelte';
@@ -59,12 +60,13 @@
 		event.preventDefault();
 		const params = new URLSearchParams();
 		if (query.trim()) params.set('q', query.trim());
-		goto(`${searchTarget}${params.size ? `?${params}` : ''}`, { keepFocus: true });
+		const href = `${searchTarget}${params.size ? `?${params}` : ''}`;
+		goto(withMailboxFilter(href, $page.url.searchParams), { keepFocus: true });
 	}
 
 	function clearSearch() {
 		query = '';
-		goto(searchTarget, { keepFocus: true });
+		goto(withMailboxFilter(searchTarget, $page.url.searchParams), { keepFocus: true });
 	}
 </script>
 

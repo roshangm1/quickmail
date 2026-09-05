@@ -5,6 +5,7 @@
 	import DomainSwitcher from './DomainSwitcher.svelte';
 	import LocaleSwitcher from './LocaleSwitcher.svelte';
 	import { haptic, isMailboxPath, isMorePath } from '$lib/app-chrome';
+	import { withMailboxFilter } from '$lib/mail/folders';
 	import { t } from '$lib/i18n';
 	import type { Domain, MailAddress, MailboxCounts } from '$lib/types';
 
@@ -56,13 +57,29 @@
 	});
 
 	const tabs = $derived([
-		{ href: '/inbox', icon: 'inbox-line', iconActive: 'inbox-fill', label: t('nav.inbox'), badge: counts.inbox_unread },
-		{ href: '/starred', icon: 'star-line', iconActive: 'star-fill', label: t('nav.starred') },
-		{ href: '/sent', icon: 'send-plane-line', iconActive: 'send-plane-fill', label: t('nav.sent') }
+		{
+			href: withMailboxFilter('/inbox', $page.url.searchParams),
+			icon: 'inbox-line',
+			iconActive: 'inbox-fill',
+			label: t('nav.inbox'),
+			badge: counts.inbox_unread
+		},
+		{
+			href: withMailboxFilter('/starred', $page.url.searchParams),
+			icon: 'star-line',
+			iconActive: 'star-fill',
+			label: t('nav.starred')
+		},
+		{
+			href: withMailboxFilter('/sent', $page.url.searchParams),
+			icon: 'send-plane-line',
+			iconActive: 'send-plane-fill',
+			label: t('nav.sent')
+		}
 	]);
 
 	function isTabActive(href: string): boolean {
-		return $page.url.pathname === href;
+		return $page.url.pathname === new URL(href, 'https://quickinbox.local').pathname;
 	}
 
 	const moreActive = $derived(isMorePath($page.url.pathname));
@@ -133,7 +150,7 @@
 	>
 		<div class="sheet-handle" aria-hidden="true"></div>
 		<nav class="sheet-nav">
-			<a href="/drafts" class="sheet-link" class:active={$page.url.pathname === '/drafts'}>
+			<a href={withMailboxFilter('/drafts', $page.url.searchParams)} class="sheet-link" class:active={$page.url.pathname === '/drafts'}>
 				<Icon name="draft-line" size={20} />
 				<span>{t('nav.drafts')}</span>
 				{#if counts.drafts}
@@ -141,7 +158,7 @@
 				{/if}
 			</a>
 			<a
-				href="/inbox?view=archive"
+				href={withMailboxFilter('/inbox?view=archive', $page.url.searchParams)}
 				class="sheet-link"
 				class:active={$page.url.pathname === '/archive' || $page.url.searchParams.get('view') === 'archive'}
 			>
@@ -151,7 +168,7 @@
 					<span class="sheet-count">{counts.archive}</span>
 				{/if}
 			</a>
-			<a href="/trash" class="sheet-link" class:active={$page.url.pathname === '/trash'}>
+			<a href={withMailboxFilter('/trash', $page.url.searchParams)} class="sheet-link" class:active={$page.url.pathname === '/trash'}>
 				<Icon name="delete-bin-line" size={20} />
 				<span>{t('nav.trash')}</span>
 				{#if counts.trash}

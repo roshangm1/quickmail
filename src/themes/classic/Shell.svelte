@@ -12,6 +12,7 @@
 		isUtilityPath,
 		noteInAppNavigation
 	} from '$lib/app-chrome';
+	import { withMailboxFilter } from '$lib/mail/folders';
 	import type { ThemeShellProps } from '$lib/ui-theme/types';
 
 	let { data, children }: ThemeShellProps = $props();
@@ -82,7 +83,7 @@
 
 		<main class="app-main" class:app-main-narrow={narrow}>
 			{#if stacked}
-				<SwipeBack href="/inbox">
+				<SwipeBack href={withMailboxFilter('/inbox', $page.url.searchParams)}>
 					{@render children()}
 				</SwipeBack>
 			{:else}

@@ -8,6 +8,7 @@
 	import { hasInAppHistory, requestSkipViewTransition } from '$lib/app-chrome';
 	import { APP_NAME } from '$lib/constants';
 	import { plural, t } from '$lib/i18n';
+	import { withMailboxFilter } from '$lib/mail/folders';
 	import { page } from '$app/stores';
 	import type { OutboundAttachmentInput } from '$lib/types';
 	import type { PageData } from './$types';
@@ -52,13 +53,16 @@
 	});
 
 	const backHref = $derived(
-		data.trashed
-			? '/trash'
-			: data.archived
-				? '/inbox?view=archive'
-				: latest?.direction === 'outbound'
-					? '/sent'
-					: '/inbox'
+		withMailboxFilter(
+			data.trashed
+				? '/trash'
+				: data.archived
+					? '/inbox?view=archive'
+					: latest?.direction === 'outbound'
+						? '/sent'
+						: '/inbox',
+			$page.url.searchParams
+		)
 	);
 
 	/**
@@ -116,7 +120,7 @@
 				error = t('mailbox.couldNotUpdateConversation');
 				return;
 			}
-			goto(data.archived ? '/inbox?view=archive' : '/inbox');
+			goto(withMailboxFilter(data.archived ? '/inbox?view=archive' : '/inbox', $page.url.searchParams));
 		} catch {
 			error = t('mailbox.conversationNetwork');
 		}
@@ -129,7 +133,7 @@
 
 	async function restore() {
 		await patch({ trashed: false });
-		goto('/inbox');
+		goto(withMailboxFilter('/inbox', $page.url.searchParams));
 	}
 
 	function goBack() {
