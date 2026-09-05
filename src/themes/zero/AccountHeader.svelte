@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import AddressSwitcher from '$lib/components/AddressSwitcher.svelte';
 	import LocaleSwitcher from '$lib/components/LocaleSwitcher.svelte';
+	import Tooltip from '$lib/components/Tooltip.svelte';
+	import { mailboxInitials } from '$lib/mail/switch-mailbox';
 	import { initials } from '$lib/mail/folders';
 	import { setThemePreference } from '$lib/theme';
 	import { t } from '$lib/i18n';
-	import Tooltip from '$lib/components/Tooltip.svelte';
-	import type { MailAddress } from '$lib/types';
 	import type { ThemeShellData } from '$lib/ui-theme/types';
 	import Icon from './icons/Icon.svelte';
 
@@ -21,9 +21,7 @@
 	} = $props();
 
 	let menuOpen = $state(false);
-	let extraOpen = $state(false);
 	let localeOpen = $state(false);
-	let switching = $state(false);
 	let darkMode = $state(false);
 
 	$effect(() => {
@@ -37,59 +35,13 @@
 			data.addresses[0] ??
 			null
 	);
-	const shown = $derived(data.addresses.slice(0, 3));
-	const extra = $derived(data.addresses.slice(3));
-	const displayName = $derived(active?.label || data.user.name || t('account.account'));
-	const displayEmail = $derived(active?.address ?? data.user.email);
-
-	function tileLabel(address: MailAddress): string {
-		if (address.label?.trim()) return initials(address.label);
-		const [local, domain] = address.address.split('@');
-		if (local && domain) {
-			return `${local[0] ?? '?'}${domain[0] ?? '?'}`.toUpperCase();
-		}
-		return (local ?? address.address).slice(0, 2).toUpperCase();
-	}
-
-	function addressTip(address: MailAddress): string {
-		const label = address.label?.trim();
-		if (label && label.toLowerCase() !== address.address.toLowerCase()) {
-			return `${label} · ${address.address}`;
-		}
-		return address.address;
-	}
+	const avatarLabel = $derived(
+		active ? mailboxInitials(active) : initials(data.user.name || data.user.email)
+	);
 
 	function closeMenus() {
 		menuOpen = false;
-		extraOpen = false;
 		localeOpen = false;
-	}
-
-	async function selectAddress(address: MailAddress) {
-		if (switching || address.id === active?.id) {
-			closeMenus();
-			return;
-		}
-
-		switching = true;
-		closeMenus();
-		try {
-			const url = new URL($page.url);
-			url.searchParams.set('address', address.id);
-			url.searchParams.delete('thread');
-			if (address.domain_id !== data.activeDomainId) {
-				await fetch('/api/domains/select', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ domainId: address.domain_id })
-				});
-				window.location.assign(`${url.pathname}${url.search}`);
-				return;
-			}
-			await goto(`${url.pathname}${url.search}`, { noScroll: true });
-		} finally {
-			switching = false;
-		}
 	}
 
 	function toggleMode() {
@@ -109,99 +61,31 @@
 
 <div class="z-account" class:collapsed>
 	{#if collapsed}
-		<Tooltip text={displayEmail}>
+		<Tooltip text={active?.address ?? data.user.email} enabled={!menuOpen}>
 			<button
 				type="button"
-				class="z-tile"
-				class:active
-				aria-label={displayEmail}
+				class="z-collapsed-avatar"
+				aria-label={t('account.menu')}
 				aria-haspopup="menu"
 				aria-expanded={menuOpen}
-				onclick={() => {
-					extraOpen = false;
-					localeOpen = false;
-					menuOpen = !menuOpen;
-				}}
+				onclick={() => (menuOpen = !menuOpen)}
 			>
-				{active ? tileLabel(active) : initials(data.user.name || data.user.email)}
+				{avatarLabel}
 			</button>
 		</Tooltip>
 	{:else}
 		<div class="z-account-row">
-			<div class="z-tiles">
-				{#each shown as address (address.id)}
-					{@const selected = address.id === active?.id}
-					<div class="z-tile-wrap">
-						<Tooltip text={addressTip(address)}>
-							<button
-								type="button"
-								class="z-tile"
-								class:active={selected}
-								aria-current={selected ? 'true' : undefined}
-								aria-label={addressTip(address)}
-								onclick={() => selectAddress(address)}
-							>
-								{tileLabel(address)}
-							</button>
-						</Tooltip>
-						{#if selected && data.addresses.length > 1}
-							<span class="z-tile-check" aria-hidden="true">
-								<Icon name="CircleCheck" size={16} />
-							</span>
-						{/if}
-					</div>
-				{/each}
-				{#if extra.length > 0}
-					<div class="z-extra">
-						<Tooltip text={t('account.moreAddresses')} enabled={!extraOpen}>
-							<button
-								type="button"
-								class="z-tile extra"
-								aria-label={t('account.moreAddresses')}
-								aria-haspopup="menu"
-								aria-expanded={extraOpen}
-								onclick={() => {
-									menuOpen = false;
-									localeOpen = false;
-									extraOpen = !extraOpen;
-								}}
-							>
-								+{extra.length}
-							</button>
-						</Tooltip>
-						{#if extraOpen}
-							<div class="z-menu z-extra-menu">
-								{#each extra as address (address.id)}
-									<button
-										type="button"
-										aria-current={address.id === active?.id ? 'true' : undefined}
-										onclick={() => selectAddress(address)}
-									>
-										<span class="z-tile">{tileLabel(address)}</span>
-										<span>
-											<strong>{address.label || address.address}</strong>
-											{#if address.label}
-												<small>{address.address}</small>
-											{/if}
-										</span>
-									</button>
-								{/each}
-							</div>
-						{/if}
-					</div>
-				{/if}
-				<Tooltip text={t('account.addAddress')}>
-					<a href="/settings/connections" class="z-tile add" aria-label={t('account.addAddress')}>
-						<Icon name="Plus" size={14} />
-					</a>
-				</Tooltip>
-			</div>
+			<AddressSwitcher
+				addresses={data.addresses}
+				activeDomainId={data.activeDomainId}
+				accountName={data.user.name}
+				block
+			/>
 			<div class="z-account-actions">
 				<LocaleSwitcher
 					bind:open={localeOpen}
 					onOpen={() => {
 						menuOpen = false;
-						extraOpen = false;
 					}}
 				/>
 				<Tooltip text={t('account.menu')} enabled={!menuOpen}>
@@ -212,7 +96,6 @@
 						aria-haspopup="menu"
 						aria-expanded={menuOpen}
 						onclick={() => {
-							extraOpen = false;
 							localeOpen = false;
 							menuOpen = !menuOpen;
 						}}
@@ -222,34 +105,18 @@
 				</Tooltip>
 			</div>
 		</div>
-
-		<div class="z-account-meta">
-			<p class="z-user-name">{displayName}</p>
-			<p class="z-user-email">{displayEmail}</p>
-		</div>
 	{/if}
 
 	{#if menuOpen}
 		<div class="z-menu z-account-menu">
-			{#if collapsed && data.addresses.length > 0}
-				<p class="z-menu-label">{t('account.addresses')}</p>
-				{#each data.addresses as address (address.id)}
-					<button type="button" onclick={() => selectAddress(address)}>
-						<span class="z-tile">{tileLabel(address)}</span>
-						<span>
-							<strong>{address.label || address.address}</strong>
-							{#if address.label}
-								<small>{address.address}</small>
-							{/if}
-						</span>
-					</button>
-				{/each}
-				<a href="/settings/connections" onclick={closeMenus}>
-					<Icon name="Plus" size={16} />
-					{t('account.addAddress')}
-				</a>
-			{/if}
 			{#if collapsed}
+				<AddressSwitcher
+					addresses={data.addresses}
+					activeDomainId={data.activeDomainId}
+					accountName={data.user.name}
+					embedded
+					onClose={closeMenus}
+				/>
 				<LocaleSwitcher embedded />
 			{/if}
 			<a href="/settings/general" onclick={closeMenus}>

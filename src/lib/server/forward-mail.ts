@@ -1,9 +1,8 @@
 import type { D1Database, R2Bucket } from '@cloudflare/workers-types';
 import type { EmailRow, User } from '$lib/types';
 import { readOutboundAttachments } from './attachments';
-import type { EmailProvider } from './email-provider';
 import { buildForwardedMessages, orderForwardedMessages, type ForwardNote } from './forward';
-import { resolveReplyFromAddress, sendAndStore } from './outbox';
+import { resolveReplyFromAddress, sendAndStore, type ProviderResolver } from './outbox';
 import { parseRecipients } from './send-mail';
 
 export type ForwardRequest = {
@@ -35,7 +34,7 @@ export async function readForwardedAttachments(
 /** Send a new conversation containing one message or a whole ordered thread. */
 export async function sendForwardedMessages(
 	env: { DB: D1Database; ATTACHMENTS: R2Bucket },
-	provider: EmailProvider,
+	provider: ProviderResolver,
 	user: User,
 	originals: EmailRow[],
 	input: ForwardRequest

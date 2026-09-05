@@ -9,8 +9,9 @@ import {
 import { SESSION_DAYS } from '$lib/server/constants';
 import {
 	ConfigError,
-	getEmailProvider,
+	findProviderDomain,
 	safeEmailProviderKind,
+	safeEmailProviderKinds,
 	hasProviderConfigured,
 	ProviderError
 } from '$lib/server/context';
@@ -19,7 +20,13 @@ import { createAddress, setCatchallUser, upsertDomain } from '$lib/server/domain
 export const GET: RequestHandler = async ({ platform }) => {
 	const db = platform?.env.DB;
 	if (!db) {
-		return json({ ready: false, needsSetup: true, providerConfigured: false, providerKind: 'resend' });
+		return json({
+			ready: false,
+			needsSetup: true,
+			providerConfigured: false,
+			providerKind: 'resend',
+			providerKinds: ['resend']
+		});
 	}
 
 	const users = await countUsers(db);
@@ -27,7 +34,8 @@ export const GET: RequestHandler = async ({ platform }) => {
 		ready: true,
 		needsSetup: users === 0,
 		providerConfigured: hasProviderConfigured(platform),
-		providerKind: safeEmailProviderKind(platform)
+		providerKind: safeEmailProviderKind(platform),
+		providerKinds: safeEmailProviderKinds(platform)
 	});
 };
 
@@ -65,8 +73,7 @@ export const POST: RequestHandler = async ({ request, cookies, platform, url }) 
 	}
 
 	try {
-		const provider = getEmailProvider(platform);
-		const domain = await upsertDomain(db, await provider.getDomain(body.domainId));
+		const domain = await upsertDomain(db, await findProviderDomain(platform, body.domainId));
 
 		const localPart = body.localPart.trim().toLowerCase().replace(/@.*$/, '');
 		const address = `${localPart}@${domain.name}`;

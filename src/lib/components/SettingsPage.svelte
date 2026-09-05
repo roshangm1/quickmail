@@ -17,6 +17,7 @@
 	import { APP_NAME } from '$lib/constants';
 	import { formatDeviceActivity } from '$lib/device-activity';
 	import { intlLocale, t } from '$lib/i18n';
+	import { providerName } from '$lib/provider-copy';
 	import type { ApiTokenSummary, Domain, MailAddress } from '$lib/types';
 	import type { SettingsSection } from '$lib/settings-section';
 	import UiThemePicker from './UiThemePicker.svelte';
@@ -728,6 +729,10 @@
 		</ul>
 
 		<form class="add-form" onsubmit={addAddress}>
+			<div class="add-head">
+				<h3>{t('settings.addAddressTitle')}</h3>
+				<p>{t('settings.addAddressHint')}</p>
+			</div>
 			<div class="add-field">
 				<label class="field-title" for="new-display-name">{t('settings.fromName')}</label>
 				<input
@@ -746,9 +751,11 @@
 					label={t('settings.addressLabel')}
 				/>
 			</div>
-			<button type="submit" class="btn-primary" disabled={busy || !localPart.trim()}>
-				{busy ? t('common.adding') : t('common.add')}
-			</button>
+			<div class="add-actions">
+				<button type="submit" class="btn-primary" disabled={busy || !localPart.trim()}>
+					{busy ? t('common.adding') : t('settings.addMailbox')}
+				</button>
+			</div>
 		</form>
 
 		{#if selectedDomain && !selectedDomain.receiving_enabled}
@@ -768,6 +775,7 @@
 				<li class="domain-row">
 					<span class="domain-name">{domain.name}</span>
 					<span class="caps">
+						<span class="chip">{providerName(domain.provider_kind)}</span>
 						<span class="chip" class:chip-on={domain.sending_enabled}>{t('settings.send')}</span>
 						<span class="chip" class:chip-on={domain.receiving_enabled}>{t('settings.receive')}</span>
 						<span class="chip" class:chip-ok={domain.status === 'verified'}>{domain.status}</span>
@@ -1191,6 +1199,25 @@
 			align-items: flex-start;
 			flex-direction: column;
 		}
+
+		.address-head {
+			flex-wrap: wrap;
+			align-items: flex-start;
+		}
+
+		.address-head .btn-ghost,
+		.address-head .icon-btn {
+			min-height: var(--touch-target);
+		}
+
+		.add-form {
+			padding: 0.875rem;
+		}
+
+		.add-actions .btn-primary {
+			width: 100%;
+			min-height: var(--touch-target);
+		}
 	}
 
 	.signature-input {
@@ -1416,7 +1443,7 @@
 		border-radius: 0.625rem;
 		font-size: 0.9375rem;
 		color: var(--color-text);
-		background: var(--color-surface-muted);
+		background: var(--color-surface);
 		box-shadow: inset 0 0 0 1px var(--color-line);
 		outline: none;
 	}
@@ -1435,14 +1462,39 @@
 
 	.add-form {
 		display: flex;
-		align-items: flex-end;
-		gap: 0.5rem;
+		flex-direction: column;
+		gap: 1rem;
 		margin-top: 1.25rem;
+		padding: 1rem;
+		border-radius: 0.875rem;
+		background: var(--color-surface-muted);
+		box-shadow: inset 0 0 0 1px var(--color-line);
+	}
+
+	.add-head h3 {
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: var(--color-text);
+	}
+
+	.add-head p {
+		margin-top: 0.25rem;
+		font-size: 0.8125rem;
+		line-height: 1.45;
+		color: var(--color-muted);
 	}
 
 	.add-field {
-		flex: 1;
 		min-width: 0;
+	}
+
+	.add-actions {
+		display: flex;
+		justify-content: flex-end;
+	}
+
+	.add-form :global(.address-input) {
+		background: var(--color-surface);
 	}
 
 	.domain-list {

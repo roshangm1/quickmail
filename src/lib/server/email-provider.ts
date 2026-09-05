@@ -10,6 +10,7 @@ export type ProviderDomain = {
 	region?: string | null;
 	sendingEnabled: boolean;
 	receivingEnabled: boolean;
+	kind: EmailProviderKind;
 };
 
 export type EmailProvider = {
@@ -39,8 +40,22 @@ export function toAvailableDomain(domain: ProviderDomain, connected: boolean): A
 		region: domain.region ?? null,
 		can_send: domain.sendingEnabled,
 		can_receive: domain.receivingEnabled,
-		connected
+		connected,
+		provider_kind: domain.kind
 	};
+}
+
+/** Cloudflare ids are hostnames; Resend ids are UUIDs. Used to backfill old rows. */
+export function inferProviderKindFromId(id: string): EmailProviderKind {
+	return id.includes('.') ? 'cloudflare' : 'resend';
+}
+
+export function parseEmailProviderKind(value: string | undefined | null): EmailProviderKind | null {
+	const raw = value?.trim().toLowerCase();
+	if (!raw || raw === 'resend') return 'resend';
+	if (raw === 'cloudflare') return 'cloudflare';
+	if (raw === 'both') return null;
+	return null;
 }
 
 /** Outbound rows stay queued until Resend webhooks land; Cloudflare send() is already accepted. */

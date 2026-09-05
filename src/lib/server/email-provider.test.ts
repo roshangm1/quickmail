@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import type { MailAddress } from '$lib/types';
 import type { EmailProvider } from './email-provider';
-import { parseMailDomains } from './email-provider';
+import { inferProviderKindFromId, parseEmailProviderKind, parseMailDomains } from './email-provider';
 import { sendOutboundEmail, type OutboundMailInput } from './send-mail';
 
 describe('parseMailDomains', () => {
@@ -22,6 +22,22 @@ describe('parseMailDomains', () => {
 		assert.deepEqual(parseMailDomains(''), []);
 		assert.deepEqual(parseMailDomains('   '), []);
 		assert.deepEqual(parseMailDomains(null), []);
+	});
+});
+
+describe('inferProviderKindFromId', () => {
+	test('treats hostnames as Cloudflare and UUIDs as Resend', () => {
+		assert.equal(inferProviderKindFromId('mail.example.com'), 'cloudflare');
+		assert.equal(inferProviderKindFromId('2b1c0d1e-0000-4000-8000-000000000001'), 'resend');
+	});
+});
+
+describe('parseEmailProviderKind', () => {
+	test('accepts resend, cloudflare, and treats both/unknown as unset', () => {
+		assert.equal(parseEmailProviderKind(undefined), 'resend');
+		assert.equal(parseEmailProviderKind('cloudflare'), 'cloudflare');
+		assert.equal(parseEmailProviderKind('both'), null);
+		assert.equal(parseEmailProviderKind('smtp'), null);
 	});
 });
 

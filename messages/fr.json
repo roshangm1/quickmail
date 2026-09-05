@@ -73,7 +73,11 @@
 		"moreAddresses": "Plus d’adresses",
 		"lightMode": "Mode clair",
 		"darkMode": "Mode sombre",
-		"account": "Compte"
+		"account": "Compte",
+		"switchMailbox": "Changer de boîte",
+		"allMailboxes": "Toutes les boîtes",
+		"allMailboxesHint": "Le courrier de toutes les adresses",
+		"closeMenu": "Fermer le menu des boîtes"
 	},
 	"auth": {
 		"signInTitle": "Connexion — {app}",
@@ -144,29 +148,36 @@
 	"provider": {
 		"resend": "Resend",
 		"cloudflare": "Cloudflare Email",
+		"and": "{a} et {b}",
 		"missingTitle": {
 			"resend": "Clé API Resend manquante",
-			"cloudflare": "Cloudflare Email n’est pas configuré"
+			"cloudflare": "Cloudflare Email n’est pas configuré",
+			"both": "Aucun fournisseur de messagerie n’est configuré"
 		},
 		"missingHint": {
 			"resend": "wrangler secret put RESEND_API_KEY",
-			"cloudflare": "EMAIL_PROVIDER=cloudflare\nCLOUDFLARE_MAIL_DOMAINS=yourdomain.com"
+			"cloudflare": "Définissez CLOUDFLARE_MAIL_DOMAINS et ajoutez une liaison send_email nommée EMAIL",
+			"both": "Ajoutez RESEND_API_KEY et/ou CLOUDFLARE_MAIL_DOMAINS plus la liaison EMAIL. Des domaines différents peuvent utiliser des backends différents."
 		},
 		"noDomainsTitle": {
 			"resend": "Aucun domaine dans ce compte Resend",
-			"cloudflare": "Aucun domaine dans CLOUDFLARE_MAIL_DOMAINS"
+			"cloudflare": "Aucun domaine dans CLOUDFLARE_MAIL_DOMAINS",
+			"both": "Aucun domaine provenant des fournisseurs configurés"
 		},
 		"noDomainsBody": {
 			"resend": "Ajoutez et vérifiez un domaine sur resend.com/domains, puis rechargez cette page.",
-			"cloudflare": "Intégrez le domaine dans Cloudflare Email Service, puis définissez CLOUDFLARE_MAIL_DOMAINS et rechargez."
+			"cloudflare": "Intégrez le domaine dans Cloudflare Email Service, puis définissez CLOUDFLARE_MAIL_DOMAINS et rechargez.",
+			"both": "Vérifiez un domaine dans Resend et/ou ajoutez des noms d’hôte à CLOUDFLARE_MAIL_DOMAINS, puis rechargez. Un même nom d’hôte ne peut pas utiliser les deux backends."
 		},
 		"domainPickerSubtitle": {
 			"resend": "Voici les domaines depuis lesquels votre compte Resend peut envoyer et recevoir. Choisissez celui que vous voulez utiliser — vous pourrez en ajouter d’autres plus tard.",
-			"cloudflare": "Voici les domaines listés dans CLOUDFLARE_MAIL_DOMAINS. Choisissez celui que vous voulez utiliser — vous pourrez en ajouter d’autres plus tard."
+			"cloudflare": "Voici les domaines listés dans CLOUDFLARE_MAIL_DOMAINS. Choisissez celui que vous voulez utiliser — vous pourrez en ajouter d’autres plus tard.",
+			"both": "Voici les domaines de chaque fournisseur configuré. Choisissez-en un — vous pourrez en connecter d’autres plus tard, y compris depuis l’autre backend."
 		},
 		"onboardingSubtitle": {
 			"resend": "Choisissez les domaines de votre compte Resend à afficher dans ce tableau de bord.",
-			"cloudflare": "Choisissez les domaines de CLOUDFLARE_MAIL_DOMAINS à afficher dans ce tableau de bord."
+			"cloudflare": "Choisissez les domaines de CLOUDFLARE_MAIL_DOMAINS à afficher dans ce tableau de bord.",
+			"both": "Choisissez des domaines Resend et/ou Cloudflare Email. Chaque nom d’hôte utilise un seul backend."
 		},
 		"receivingHint": {
 			"resend": "La réception n’est pas encore activée sur {domain} — vous pouvez envoyer, mais le courrier entrant n’arrivera pas tant que vous n’aurez pas ajouté l’enregistrement MX dans Resend.",
@@ -343,6 +354,9 @@
 		"removeAddress": "Retirer {address}",
 		"mailboxSignature": "Signature de cette adresse",
 		"addressLabel": "Adresse",
+		"addAddressTitle": "Ajouter une adresse",
+		"addAddressHint": "Créez une autre identité d’expéditeur sur un domaine connecté.",
+		"addMailbox": "Ajouter une boîte",
 		"canSendNotReceive": "{domain} peut envoyer, mais la réception est désactivée.",
 		"couldNotAddAddress": "Impossible d’ajouter cette adresse",
 		"couldNotSaveName": "Impossible d’enregistrer ce nom",
@@ -437,7 +451,7 @@
 	},
 	"admin": {
 		"title": "Admin — {app}",
-		"domainsHint": "Le catch-all reçoit le courrier sans destinataire correspondant.",
+		"domainsHint": "Le catch-all reçoit le courrier sans destinataire correspondant. Chaque domaine utilise un fournisseur — Resend et Cloudflare Email peuvent tous deux être connectés sur cette instance.",
 		"addressCount": "{count} adresse",
 		"addressCountPlural": "{count} adresses",
 		"catchall": "Catch-all",

@@ -79,7 +79,8 @@ function toProviderDomain(domain: ResendDomain): ProviderDomain {
 		status: domain.status,
 		region: domain.region ?? null,
 		sendingEnabled: isDomainSendable(domain),
-		receivingEnabled: isDomainReceivable(domain)
+		receivingEnabled: isDomainReceivable(domain),
+		kind: 'resend'
 	};
 }
 

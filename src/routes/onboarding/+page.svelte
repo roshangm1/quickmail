@@ -8,7 +8,7 @@
 		noDomainsBody,
 		noDomainsTitle,
 		onboardingSubtitle,
-		providerName
+		providersLabel
 	} from '$lib/provider-copy';
 	import { APP_NAME } from '$lib/constants';
 	import { plural, t } from '$lib/i18n';
@@ -98,11 +98,11 @@
 <WizardShell
 	title={needsDomain ? t('onboarding.connectDomain') : t('onboarding.claimAddress')}
 	subtitle={needsDomain
-		? onboardingSubtitle(data.providerKind)
+		? onboardingSubtitle(data.providerKinds)
 		: t('onboarding.chooseAddress')}
 	partner={needsDomain}
 	partnerKind={data.providerKind}
-	partnerCaption={t('setup.partnerCaption', { app: APP_NAME, provider: providerName(data.providerKind) })}
+	partnerCaption={t('setup.partnerCaption', { app: APP_NAME, provider: providersLabel(data.providerKinds) })}
 >
 	{#if needsDomain}
 		{#if !data.isAdmin}
@@ -118,7 +118,7 @@
 				<Icon name={data.providerConfigured ? 'error-warning-line' : 'key-2-line'} size={18} />
 				<div>
 					<p class="notice-title">
-						{data.providerConfigured ? t('setup.couldNotLoadDomains') : missingProviderTitle(data.providerKind)}
+						{data.providerConfigured ? t('setup.couldNotLoadDomains') : missingProviderTitle(data.providerKinds)}
 					</p>
 					<p class="notice-body">{data.loadError}</p>
 				</div>
@@ -127,9 +127,9 @@
 			<div class="surface-lg notice">
 				<Icon name="global-line" size={18} />
 				<div>
-					<p class="notice-title">{noDomainsTitle(data.providerKind)}</p>
+					<p class="notice-title">{noDomainsTitle(data.providerKinds)}</p>
 					<p class="notice-body">
-						{noDomainsBody(data.providerKind)}
+						{noDomainsBody(data.providerKinds)}
 					</p>
 				</div>
 			</div>

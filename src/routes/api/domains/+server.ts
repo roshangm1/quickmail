@@ -1,17 +1,19 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import {
 	ConfigError,
-	getEmailProvider,
+	findProviderDomain,
 	safeEmailProviderKind,
+	safeEmailProviderKinds,
 	hasProviderConfigured,
 	listAvailableDomains,
+	listConfiguredProviders,
 	ProviderError,
 	providerLoadError
 } from '$lib/server/context';
 import { listDomains, syncDomains, upsertDomain } from '$lib/server/domains';
 
 /**
- * GET  — every domain the configured provider can reach, flagged with
+ * GET  — every domain any configured provider can reach, flagged with
  *        whether it is already connected to this dashboard.
  * POST — connect one (or several) of them.
  */
@@ -23,25 +25,25 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 
 	const connected = await listDomains(db);
 	const providerKind = safeEmailProviderKind(platform);
+	const providerKinds = safeEmailProviderKinds(platform);
 
-	// Non-admins only need what is already wired up.
 	if (!locals.user.is_admin) {
 		return json({
 			connected,
 			available: [],
 			providerConfigured: true,
-			providerKind
+			providerKind,
+			providerKinds
 		});
 	}
 
 	try {
-		const provider = getEmailProvider(platform);
-
 		if (url.searchParams.get('sync') === '1') {
 			return json({
-				connected: await syncDomains(db, provider),
+				connected: await syncDomains(db, listConfiguredProviders(platform)),
 				available: [],
-				providerKind
+				providerKind,
+				providerKinds
 			});
 		}
 
@@ -49,10 +51,8 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 			connected,
 			providerConfigured: true,
 			providerKind,
-			available: await listAvailableDomains(
-				platform,
-				connected.map((domain) => domain.id)
-			)
+			providerKinds,
+			available: await listAvailableDomains(platform, connected)
 		});
 	} catch (error) {
 		if (error instanceof ConfigError) {
@@ -61,6 +61,7 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 				available: [],
 				providerConfigured: false,
 				providerKind,
+				providerKinds,
 				error: error.message
 			});
 		}
@@ -70,7 +71,8 @@ export const GET: RequestHandler = async ({ locals, platform, url }) => {
 				available: [],
 				providerConfigured: hasProviderConfigured(platform),
 				providerKind,
-				error: providerLoadError(providerKind, error)
+				providerKinds,
+				error: providerLoadError(providerKinds, error)
 			},
 			{ status: error instanceof ProviderError ? (error.status >= 500 ? 502 : 400) : 502 }
 		);
@@ -91,11 +93,10 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 	}
 
 	try {
-		const provider = getEmailProvider(platform);
 		const connected = [];
 
 		for (const id of ids) {
-			connected.push(await upsertDomain(db, await provider.getDomain(id)));
+			connected.push(await upsertDomain(db, await findProviderDomain(platform, id)));
 		}
 
 		return json({ connected, domains: await listDomains(db) }, { status: 201 });

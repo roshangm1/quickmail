@@ -31,12 +31,14 @@
 		spellcheck="false"
 		class="local-input"
 	/>
-	<span class="at">@</span>
-	<select bind:value={domainId} class="domain-select" aria-label={t('domains.domain')}>
-		{#each domains as domain (domain.id)}
-			<option value={domain.id}>{domain.name}</option>
-		{/each}
-	</select>
+	<span class="domain-wrap">
+		<span class="at">@</span>
+		<select bind:value={domainId} class="domain-select" aria-label={t('domains.domain')}>
+			{#each domains as domain (domain.id)}
+				<option value={domain.id}>{domain.name}</option>
+			{/each}
+		</select>
+	</span>
 </div>
 
 <style>
@@ -70,16 +72,53 @@
 		outline: none;
 	}
 
+	.domain-wrap {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		min-width: 0;
+		max-width: 55%;
+	}
+
 	.at {
+		flex-shrink: 0;
 		color: var(--color-muted);
 	}
 
 	.domain-select {
-		max-width: 55%;
+		min-width: 0;
+		max-width: 100%;
 		font-size: 0.875rem;
 		color: var(--color-text-secondary);
 		background: transparent;
 		outline: none;
 		cursor: pointer;
+	}
+
+	@media (max-width: 30rem) {
+		.address-input {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 0.5rem;
+			padding: 0.75rem;
+		}
+
+		.local-input {
+			min-height: 2.25rem;
+			font-size: 1rem;
+		}
+
+		.domain-wrap {
+			max-width: none;
+			width: 100%;
+			min-height: 2.5rem;
+			padding-top: 0.5rem;
+			box-shadow: inset 0 1px 0 var(--color-line);
+		}
+
+		.domain-select {
+			flex: 1;
+			font-size: 0.9375rem;
+		}
 	}
 </style>

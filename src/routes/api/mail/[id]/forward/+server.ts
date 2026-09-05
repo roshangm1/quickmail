@@ -1,7 +1,7 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import {
 	describeProviderError,
-	getEmailProvider,
+	sendProviderResolver,
 	statusForProviderError
 } from '$lib/server/context';
 import { sendForwardedMessages, type ForwardRequest } from '$lib/server/forward-mail';
@@ -29,10 +29,9 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 	// A forward goes to someone outside the original exchange, so it starts its
 	// own conversation rather than continuing that one — no In-Reply-To chain.
 	try {
-		const provider = getEmailProvider(platform);
 		const { emailId } = await sendForwardedMessages(
 			{ DB: db, ATTACHMENTS: bucket },
-			provider,
+			sendProviderResolver(platform, db),
 			locals.user,
 			[original],
 			body

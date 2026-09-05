@@ -27,11 +27,6 @@ export default {
 	},
 
 	async email(message: CloudflareInboundMessage, env: Env, ctx: ExecutionContext) {
-		if (env.EMAIL_PROVIDER?.trim().toLowerCase() !== 'cloudflare') {
-			message.setReject('Cloudflare email provider is not enabled');
-			return;
-		}
-
 		const inboundEnv: CloudflareInboundEnv = {
 			DB: env.DB,
 			ATTACHMENTS: env.ATTACHMENTS,

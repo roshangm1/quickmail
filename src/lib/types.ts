@@ -30,6 +30,9 @@ export type DeliveryStatus =
 /** What the `emails.status` column can hold — delivery state, or an unsent draft. */
 export type MailStatus = DeliveryStatus | 'draft';
 
+/** A mail backend that can be enabled on this Worker. More than one may be active. */
+export type EmailProviderKind = 'resend' | 'cloudflare';
+
 export type Domain = {
 	id: string;
 	name: string;
@@ -40,12 +43,11 @@ export type Domain = {
 	catchall_user_id: string | null;
 	created_at: string;
 	synced_at: string | null;
+	/** Which backend this hostname is connected through. */
+	provider_kind: EmailProviderKind;
 };
 
-/** Which mail backend this deploy is configured to use. */
-export type EmailProviderKind = 'resend' | 'cloudflare';
-
-/** A domain as reported by the active provider, flagged with local connection state. */
+/** A domain as reported by a configured provider, flagged with local connection state. */
 export type AvailableDomain = {
 	id: string;
 	name: string;
@@ -54,6 +56,7 @@ export type AvailableDomain = {
 	can_send: boolean;
 	can_receive: boolean;
 	connected: boolean;
+	provider_kind: EmailProviderKind;
 };
 
 export type MailAddress = {

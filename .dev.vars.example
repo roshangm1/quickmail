@@ -3,11 +3,10 @@
 #
 # In production these live as Worker secrets / vars instead.
 
-# resend (default) or cloudflare. Set in wrangler.jsonc vars for production;
-# uncomment here only to override locally.
-# EMAIL_PROVIDER=resend
+# Optional preference when both backends are configured: resend | cloudflare | both.
+# EMAIL_PROVIDER=both
 
-# --- Resend (EMAIL_PROVIDER=resend) ---
+# --- Resend (any domain verified in Resend) ---
 # From https://resend.com/api-keys — needs full access (send + domains + receiving).
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
@@ -15,7 +14,7 @@ RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # (see the README). Starts with whsec_.
 RESEND_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-# --- Cloudflare Email (EMAIL_PROVIDER=cloudflare) ---
+# --- Cloudflare Email (can be used together with Resend on other hostnames) ---
 # Comma-separated domains already onboarded in Email Service / Email Routing.
 # CLOUDFLARE_MAIL_DOMAINS=example.com,mail.example.com
 

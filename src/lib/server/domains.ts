@@ -1,7 +1,12 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { Domain, MailAddress } from '$lib/types';
 import { parseMailboxSignature } from '$lib/email-signature';
-import type { EmailProvider, ProviderDomain } from './email-provider';
+import {
+	inferProviderKindFromId,
+	ProviderError,
+	type EmailProvider,
+	type ProviderDomain
+} from './email-provider';
 
 type DomainRow = {
 	id: string;
@@ -13,6 +18,7 @@ type DomainRow = {
 	catchall_user_id: string | null;
 	created_at: string;
 	synced_at: string | null;
+	provider_kind?: string | null;
 };
 
 type AddressRow = {
@@ -28,6 +34,9 @@ type AddressRow = {
 };
 
 function mapDomain(row: DomainRow): Domain {
+	const kind = row.provider_kind === 'cloudflare' || row.provider_kind === 'resend'
+		? row.provider_kind
+		: inferProviderKindFromId(row.id);
 	return {
 		id: row.id,
 		name: row.name,
@@ -37,7 +46,8 @@ function mapDomain(row: DomainRow): Domain {
 		receiving_enabled: row.receiving_enabled === 1,
 		catchall_user_id: row.catchall_user_id,
 		created_at: row.created_at,
-		synced_at: row.synced_at
+		synced_at: row.synced_at,
+		provider_kind: kind
 	};
 }
 
@@ -89,25 +99,37 @@ export async function getDomainByName(db: D1Database, name: string): Promise<Dom
  * re-running is safe and picks up newly verified DNS.
  */
 export async function upsertDomain(db: D1Database, domain: ProviderDomain): Promise<Domain> {
+	const name = domain.name.toLowerCase();
+	const existing = await getDomainByName(db, name);
+	if (existing && existing.id !== domain.id) {
+		throw new ProviderError(
+			409,
+			'domain_in_use',
+			`${name} is already connected via ${existing.provider_kind === 'cloudflare' ? 'Cloudflare Email' : 'Resend'}`
+		);
+	}
+
 	await db
 		.prepare(
-			`INSERT INTO domains (id, name, status, region, sending_enabled, receiving_enabled, synced_at)
-			 VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+			`INSERT INTO domains (id, name, status, region, sending_enabled, receiving_enabled, provider_kind, synced_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
 			 ON CONFLICT(id) DO UPDATE SET
 				name = excluded.name,
 				status = excluded.status,
 				region = excluded.region,
 				sending_enabled = excluded.sending_enabled,
 				receiving_enabled = excluded.receiving_enabled,
+				provider_kind = excluded.provider_kind,
 				synced_at = excluded.synced_at`
 		)
 		.bind(
 			domain.id,
-			domain.name.toLowerCase(),
+			name,
 			domain.status,
 			domain.region ?? null,
 			domain.sendingEnabled ? 1 : 0,
-			domain.receivingEnabled ? 1 : 0
+			domain.receivingEnabled ? 1 : 0,
+			domain.kind
 		)
 		.run();
 
@@ -131,20 +153,26 @@ export async function setCatchallUser(
 		.run();
 }
 
-/** Re-read every connected domain from the active provider so status stays fresh. */
-export async function syncDomains(db: D1Database, provider: EmailProvider): Promise<Domain[]> {
+/** Re-read every connected domain from its own backend so status stays fresh. */
+export async function syncDomains(db: D1Database, providers: EmailProvider[]): Promise<Domain[]> {
 	const connected = await listDomains(db);
 	if (connected.length === 0) return [];
 
-	const remote = await provider.listDomains();
-	const byId = new Map(remote.map((domain) => [domain.id, domain]));
+	const remoteByKind = new Map<EmailProvider['kind'], Map<string, ProviderDomain>>();
+	for (const provider of providers) {
+		try {
+			const remote = await provider.listDomains();
+			remoteByKind.set(provider.kind, new Map(remote.map((domain) => [domain.id, domain])));
+		} catch {
+			remoteByKind.set(provider.kind, new Map());
+		}
+	}
 
 	for (const domain of connected) {
-		const match = byId.get(domain.id);
+		const match = remoteByKind.get(domain.provider_kind)?.get(domain.id);
 		if (match) {
 			await upsertDomain(db, match);
-		} else {
-			// Removed from the provider — mark it so the UI can explain why sending fails.
+		} else if (remoteByKind.has(domain.provider_kind)) {
 			await db
 				.prepare(
 					`UPDATE domains SET status = 'missing', sending_enabled = 0, receiving_enabled = 0,

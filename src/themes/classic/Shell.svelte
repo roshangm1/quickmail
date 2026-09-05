@@ -65,6 +65,7 @@
 	<Sidebar
 		counts={data.counts}
 		domains={data.domains}
+		addresses={data.addresses}
 		activeDomainId={data.activeDomainId}
 		isAdmin={data.user.is_admin}
 		bind:collapsed
@@ -75,6 +76,7 @@
 			userName={data.user.name}
 			userEmail={data.user.email}
 			addresses={data.addresses}
+			activeDomainId={data.activeDomainId}
 			onLogout={logout}
 		/>
 
@@ -93,6 +95,7 @@
 		<MobileChrome
 			counts={data.counts}
 			domains={data.domains}
+			addresses={data.addresses}
 			activeDomainId={data.activeDomainId}
 			isAdmin={data.user.is_admin}
 			onLogout={logout}

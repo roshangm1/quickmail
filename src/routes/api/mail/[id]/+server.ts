@@ -1,7 +1,7 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import {
 	describeProviderError,
-	getEmailProvider,
+	sendProviderResolver,
 	statusForProviderError
 } from '$lib/server/context';
 import {
@@ -129,10 +129,9 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 		: await resolveReplyFromAddress(db, locals.user, original);
 
 	try {
-		const provider = getEmailProvider(platform);
 		const { emailId } = await sendAndStore(
 			{ DB: db, ATTACHMENTS: bucket },
-			provider,
+			sendProviderResolver(platform, db),
 			locals.user,
 			{
 				fromAddressId: body.fromAddressId,

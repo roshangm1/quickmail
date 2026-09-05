@@ -20,6 +20,17 @@ import { insertEmail } from './mail-store';
 import { initialOutboundStatus, type EmailProvider } from './email-provider';
 import { escapeHtml, parseRecipients, sendOutboundEmail } from './send-mail';
 
+export type ProviderResolver =
+	| EmailProvider
+	| ((from: MailAddress) => EmailProvider | Promise<EmailProvider>);
+
+async function resolveSendProvider(
+	source: ProviderResolver,
+	from: MailAddress
+): Promise<EmailProvider> {
+	return typeof source === 'function' ? source(from) : source;
+}
+
 export type ComposeInput = {
 	fromAddressId?: string | null;
 	/** Pre-resolved identity — used by replies so we can send from the received mailbox. */
@@ -136,12 +147,13 @@ export async function resolveReplyFromAddress(
 /** Send through the configured provider, then record it in the Sent folder. */
 export async function sendAndStore(
 	env: { DB: D1Database; ATTACHMENTS: R2Bucket },
-	provider: EmailProvider,
+	provider: ProviderResolver,
 	user: User,
 	input: ComposeInput
 ): Promise<{ emailId: string; providerId: string; from: MailAddress }> {
 	// resolveFromAddress scopes the lookup to this user, so ownership is implied.
 	const from = input.fromAddress ?? (await resolveFromAddress(env.DB, user, input.fromAddressId));
+	const resolvedProvider = await resolveSendProvider(provider, from);
 
 	const bodyHtml = input.html?.trim() || null;
 	const bodyText = input.text?.trim() || (bodyHtml ? stripHtml(bodyHtml) : '');
@@ -160,7 +172,7 @@ export async function sendAndStore(
 	const attachments = input.attachments ?? [];
 	assertOutboundAttachments(attachments, input.allowCombinedAttachments);
 
-	const { providerId } = await sendOutboundEmail(provider, {
+	const { providerId } = await sendOutboundEmail(resolvedProvider, {
 		from,
 		senderName: from.label?.trim() || user.name,
 		to: input.to,
@@ -191,7 +203,7 @@ export async function sendAndStore(
 		domainId: from.domain_id,
 		addressId: from.id,
 		providerId,
-		status: initialOutboundStatus(provider.kind),
+		status: initialOutboundStatus(resolvedProvider.kind),
 		isRead: true,
 		subjectMatch: input.subjectMatch
 	});

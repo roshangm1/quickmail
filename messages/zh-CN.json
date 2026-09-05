@@ -73,7 +73,11 @@
 		"moreAddresses": "更多地址",
 		"lightMode": "浅色模式",
 		"darkMode": "深色模式",
-		"account": "账户"
+		"account": "账户",
+		"switchMailbox": "切换邮箱",
+		"allMailboxes": "全部收件箱",
+		"allMailboxesHint": "来自所有地址的邮件",
+		"closeMenu": "关闭邮箱菜单"
 	},
 	"auth": {
 		"signInTitle": "登录 — {app}",
@@ -144,29 +148,36 @@
 	"provider": {
 		"resend": "Resend",
 		"cloudflare": "Cloudflare Email",
+		"and": "{a} 和 {b}",
 		"missingTitle": {
 			"resend": "缺少 Resend API 密钥",
-			"cloudflare": "未配置 Cloudflare Email"
+			"cloudflare": "未配置 Cloudflare Email",
+			"both": "尚未配置邮件服务商"
 		},
 		"missingHint": {
 			"resend": "wrangler secret put RESEND_API_KEY",
-			"cloudflare": "EMAIL_PROVIDER=cloudflare\nCLOUDFLARE_MAIL_DOMAINS=yourdomain.com"
+			"cloudflare": "设置 CLOUDFLARE_MAIL_DOMAINS 并添加名为 EMAIL 的 send_email 绑定",
+			"both": "添加 RESEND_API_KEY 和/或 CLOUDFLARE_MAIL_DOMAINS 以及 EMAIL 绑定。不同域名可以使用不同后端。"
 		},
 		"noDomainsTitle": {
 			"resend": "此 Resend 账户中没有域名",
-			"cloudflare": "CLOUDFLARE_MAIL_DOMAINS 中没有域名"
+			"cloudflare": "CLOUDFLARE_MAIL_DOMAINS 中没有域名",
+			"both": "已配置的服务商中没有域名"
 		},
 		"noDomainsBody": {
 			"resend": "请在 resend.com/domains 添加并验证域名，然后刷新此页面。",
-			"cloudflare": "在 Cloudflare Email Service 中接入域名，然后设置 CLOUDFLARE_MAIL_DOMAINS 并刷新。"
+			"cloudflare": "在 Cloudflare Email Service 中接入域名，然后设置 CLOUDFLARE_MAIL_DOMAINS 并刷新。",
+			"both": "在 Resend 验证域名，和/或把主机名加入 CLOUDFLARE_MAIL_DOMAINS，然后刷新。同一主机名不能同时使用两个后端。"
 		},
 		"domainPickerSubtitle": {
 			"resend": "这些是你的 Resend 账户可以收发的域名。选择你要使用的那个 — 之后还可以再添加。",
-			"cloudflare": "这些是 CLOUDFLARE_MAIL_DOMAINS 中列出的域名。选择你要使用的那个 — 之后还可以再添加。"
+			"cloudflare": "这些是 CLOUDFLARE_MAIL_DOMAINS 中列出的域名。选择你要使用的那个 — 之后还可以再添加。",
+			"both": "这些是每个已配置服务商上的域名。先选一个 — 之后还可以连接更多，包括另一个后端的域名。"
 		},
 		"onboardingSubtitle": {
 			"resend": "从你的 Resend 账户中选择要加入此控制台的域名。",
-			"cloudflare": "从 CLOUDFLARE_MAIL_DOMAINS 中选择要加入此控制台的域名。"
+			"cloudflare": "从 CLOUDFLARE_MAIL_DOMAINS 中选择要加入此控制台的域名。",
+			"both": "从 Resend 和/或 Cloudflare Email 选择域名。每个主机名只使用一个后端。"
 		},
 		"receivingHint": {
 			"resend": "{domain} 尚未启用接收 — 你可以发信，但在 Resend 中添加 MX 记录之前收不到来信。",
@@ -343,6 +354,9 @@
 		"removeAddress": "移除 {address}",
 		"mailboxSignature": "此地址的签名",
 		"addressLabel": "地址",
+		"addAddressTitle": "添加地址",
+		"addAddressHint": "在已连接的域名上再创建一个发件身份。",
+		"addMailbox": "添加邮箱",
 		"canSendNotReceive": "{domain} 可以发信，但未开启接收。",
 		"couldNotAddAddress": "无法添加该地址",
 		"couldNotSaveName": "无法保存该名称",
@@ -437,7 +451,7 @@
 	},
 	"admin": {
 		"title": "管理 — {app}",
-		"domainsHint": "Catch-all 会接收无法匹配的邮件。",
+		"domainsHint": "Catch-all 会接收无法匹配的邮件。每个域名只用一个服务商 — 同一实例可以同时连接 Resend 和 Cloudflare Email。",
 		"addressCount": "{count} 个地址",
 		"addressCountPlural": "{count} 个地址",
 		"catchall": "Catch-all",

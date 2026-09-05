@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import {
 	ConfigError,
 	safeEmailProviderKind,
+	safeEmailProviderKinds,
 	hasProviderConfigured,
 	listAvailableDomains,
 	providerLoadError
@@ -15,12 +16,14 @@ import type { AvailableDomain } from '$lib/types';
  */
 export const load: PageServerLoad = async ({ platform }) => {
 	const providerKind = safeEmailProviderKind(platform);
+	const providerKinds = safeEmailProviderKinds(platform);
 
 	try {
 		const available = await listAvailableDomains(platform);
 		return {
 			available,
 			providerKind,
+			providerKinds,
 			providerConfigured: true,
 			loadError: null
 		};
@@ -28,8 +31,9 @@ export const load: PageServerLoad = async ({ platform }) => {
 		return {
 			available: [] as AvailableDomain[],
 			providerKind,
+			providerKinds,
 			providerConfigured: !(error instanceof ConfigError) && hasProviderConfigured(platform),
-			loadError: providerLoadError(providerKind, error)
+			loadError: providerLoadError(providerKinds, error)
 		};
 	}
 };

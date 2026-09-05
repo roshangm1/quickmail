@@ -96,7 +96,8 @@ function cloudflareDomain(name: string): ProviderDomain {
 		status: 'verified',
 		region: null,
 		sendingEnabled: true,
-		receivingEnabled: true
+		receivingEnabled: true,
+		kind: 'cloudflare'
 	};
 }
 

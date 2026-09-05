@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import { t } from '$lib/i18n';
+	import { providerName } from '$lib/provider-copy';
 	import type { AvailableDomain } from '$lib/types';
 
 	let {
@@ -44,6 +45,7 @@
 				<span class="domain-main">
 					<span class="domain-name">{domain.name}</span>
 					<span class="domain-meta">
+						<span class="chip">{providerName(domain.provider_kind)}</span>
 						<span class="chip" class:chip-ok={domain.status === 'verified'}>{domain.status}</span>
 						{#if domain.region}<span class="chip">{domain.region}</span>{/if}
 					</span>
@@ -137,6 +139,7 @@
 
 	.domain-meta {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 0.375rem;
 	}
 

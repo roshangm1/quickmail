@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import {
 	ConfigError,
 	safeEmailProviderKind,
+	safeEmailProviderKinds,
 	hasProviderConfigured,
 	listAvailableDomains,
 	providerLoadError
@@ -10,11 +11,13 @@ import type { AvailableDomain } from '$lib/types';
 
 export const load: PageServerLoad = async ({ locals, platform }) => {
 	const providerKind = safeEmailProviderKind(platform);
+	const providerKinds = safeEmailProviderKinds(platform);
 	const base = {
 		domains: locals.domains,
 		addresses: locals.addresses,
 		isAdmin: locals.user?.is_admin ?? false,
-		providerKind
+		providerKind,
+		providerKinds
 	};
 
 	// Only the admin talks to the provider; everyone else just claims an address
@@ -24,17 +27,14 @@ export const load: PageServerLoad = async ({ locals, platform }) => {
 	}
 
 	try {
-		const available = await listAvailableDomains(
-			platform,
-			locals.domains.map((domain) => domain.id)
-		);
+		const available = await listAvailableDomains(platform, locals.domains);
 		return { ...base, available, providerConfigured: true, loadError: null };
 	} catch (error) {
 		return {
 			...base,
 			available: [] as AvailableDomain[],
 			providerConfigured: !(error instanceof ConfigError) && hasProviderConfigured(platform),
-			loadError: providerLoadError(providerKind, error)
+			loadError: providerLoadError(providerKinds, error)
 		};
 	}
 };

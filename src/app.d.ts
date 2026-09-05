@@ -12,9 +12,9 @@ declare global {
 				ATTACHMENTS: R2Bucket;
 				ASSETS: Fetcher;
 				EMAIL: CloudflareSendEmailBinding;
-				/** `resend` (default) or `cloudflare`. */
+				/** Optional preference when both backends are configured: `resend`, `cloudflare`, or `both`. */
 				EMAIL_PROVIDER?: string;
-				/** Comma-separated domains when EMAIL_PROVIDER=cloudflare. */
+				/** Comma-separated Cloudflare Email domains. Can be used together with Resend. */
 				CLOUDFLARE_MAIL_DOMAINS?: string;
 				/** Resend API key — `wrangler secret put RESEND_API_KEY`. */
 				RESEND_API_KEY: string;

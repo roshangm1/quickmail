@@ -1,7 +1,7 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import {
 	describeProviderError,
-	getEmailProvider,
+	sendProviderResolver,
 	statusForProviderError
 } from '$lib/server/context';
 import { deleteDraft, listMailbox } from '$lib/server/mail-store';
@@ -81,10 +81,9 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 	}
 
 	try {
-		const provider = getEmailProvider(platform);
 		const { emailId } = await sendAndStore(
 			{ DB: db, ATTACHMENTS: bucket },
-			provider,
+			sendProviderResolver(platform, db),
 			locals.user,
 			{
 				fromAddressId: body.fromAddressId,

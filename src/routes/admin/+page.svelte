@@ -7,7 +7,7 @@
 	import { formatDeviceActivity } from '$lib/device-activity';
 	import { plural, t } from '$lib/i18n';
 	import { page } from '$app/stores';
-	import { providerName } from '$lib/provider-copy';
+	import { providerName, providersLabel } from '$lib/provider-copy';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -214,7 +214,8 @@
 						<div class="min-w-0">
 							<p class="domain-name">{domain.name}</p>
 							<p class="domain-sub">
-								{plural($page.data.locale, 'admin.addressCount', 'admin.addressCountPlural', addressesFor(domain.id).length)}
+								{providerName(domain.provider_kind)}
+								· {plural($page.data.locale, 'admin.addressCount', 'admin.addressCountPlural', addressesFor(domain.id).length)}
 								{#if domain.region}· {domain.region}{/if}
 							</p>
 						</div>
@@ -263,7 +264,7 @@
 					{#if !domain.receiving_enabled}
 						<p class="hint">
 							<Icon name="information-line" size={13} />
-							{data.providerKind === 'cloudflare'
+							{domain.provider_kind === 'cloudflare'
 								? t('admin.inboundOffRouting')
 								: t('admin.inboundOffMx')}
 						</p>
@@ -281,14 +282,14 @@
 		{#if connectable.length > 0}
 			<div class="connect-block">
 				<p class="connect-title">
-					{t('admin.availableIn', { provider: providerName(data.providerKind) })}
+					{t('admin.availableIn', { provider: providersLabel(data.providerKinds) })}
 				</p>
 				<ul class="connect-list">
 					{#each connectable as domain (domain.id)}
 						<li class="connect-row">
 							<div class="min-w-0">
 								<p class="domain-name">{domain.name}</p>
-								<p class="domain-sub">{domain.status}{#if domain.region} · {domain.region}{/if}</p>
+								<p class="domain-sub">{providerName(domain.provider_kind)} · {domain.status}{#if domain.region} · {domain.region}{/if}</p>
 							</div>
 							<button
 								type="button"

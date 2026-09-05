@@ -2,20 +2,23 @@
 	import { page } from '$app/stores';
 	import Icon from './Icon.svelte';
 	import Logo from './Logo.svelte';
+	import AddressSwitcher from './AddressSwitcher.svelte';
 	import DomainSwitcher from './DomainSwitcher.svelte';
 	import { APP_NAME } from '$lib/constants';
 	import { t } from '$lib/i18n';
-	import type { Domain, MailboxCounts } from '$lib/types';
+	import type { Domain, MailAddress, MailboxCounts } from '$lib/types';
 
 	let {
 		counts,
 		domains,
+		addresses,
 		activeDomainId,
 		isAdmin,
 		collapsed = $bindable(false)
 	}: {
 		counts: MailboxCounts;
 		domains: Domain[];
+		addresses: MailAddress[];
 		activeDomainId: string | null;
 		isAdmin: boolean;
 		collapsed?: boolean;
@@ -102,12 +105,20 @@
 		{/each}
 	</nav>
 
-	{#if !collapsed && domains.length > 0}
+	{#if !collapsed && (addresses.length > 0 || domains.length > 0)}
 		<div class="section">
-			<p class="section-title">{t('nav.domains')}</p>
-			<div class="section-body">
-				<DomainSwitcher {domains} {activeDomainId} block />
-			</div>
+			{#if addresses.length > 0}
+				<p class="section-title">{t('account.addresses')}</p>
+				<div class="section-body">
+					<AddressSwitcher {addresses} {activeDomainId} block />
+				</div>
+			{/if}
+			{#if domains.length > 1}
+				<p class="section-title section-title-spaced">{t('nav.domains')}</p>
+				<div class="section-body">
+					<DomainSwitcher {domains} {activeDomainId} block />
+				</div>
+			{/if}
 		</div>
 	{/if}
 
@@ -281,6 +292,10 @@
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
 		color: var(--color-muted);
+	}
+
+	.section-title-spaced {
+		margin-top: 0.875rem;
 	}
 
 	.section-body {

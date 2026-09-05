@@ -9,7 +9,7 @@
 		missingProviderTitle,
 		noDomainsBody,
 		noDomainsTitle,
-		providerName,
+		providersLabel,
 		receivingHint
 	} from '$lib/provider-copy';
 	import { APP_NAME } from '$lib/constants';
@@ -89,22 +89,22 @@
 <WizardShell
 	title={step === 1 ? t('setup.chooseDomain') : t('setup.createAccount')}
 	subtitle={step === 1
-		? domainPickerSubtitle(data.providerKind)
+		? domainPickerSubtitle(data.providerKinds)
 		: t('setup.sendReceiveOn', { domain: chosen?.name ?? '' })}
 	steps={[t('setup.stepDomain'), t('setup.stepAccount')]}
 	current={step}
 	partner={step === 1}
 	partnerKind={data.providerKind}
-	partnerCaption={t('setup.partnerCaption', { app: APP_NAME, provider: providerName(data.providerKind) })}
+	partnerCaption={t('setup.partnerCaption', { app: APP_NAME, provider: providersLabel(data.providerKinds) })}
 >
 	{#if step === 1}
 		{#if !data.providerConfigured}
 			<div class="surface-lg notice notice-warn">
 				<Icon name="key-2-line" size={18} />
 				<div>
-					<p class="notice-title">{missingProviderTitle(data.providerKind)}</p>
+					<p class="notice-title">{missingProviderTitle(data.providerKinds)}</p>
 					<p class="notice-body">{data.loadError}</p>
-					<pre class="snippet">{missingProviderHint(data.providerKind)}</pre>
+					<pre class="snippet">{missingProviderHint(data.providerKinds)}</pre>
 				</div>
 			</div>
 		{:else if data.loadError}
@@ -119,9 +119,9 @@
 			<div class="surface-lg notice">
 				<Icon name="global-line" size={18} />
 				<div>
-					<p class="notice-title">{noDomainsTitle(data.providerKind)}</p>
+					<p class="notice-title">{noDomainsTitle(data.providerKinds)}</p>
 					<p class="notice-body">
-						{noDomainsBody(data.providerKind)}
+						{noDomainsBody(data.providerKinds)}
 					</p>
 				</div>
 			</div>
@@ -187,7 +187,7 @@
 			{#if chosen && !chosen.can_receive}
 				<p class="hint">
 					<Icon name="information-line" size={14} />
-					{receivingHint(data.providerKind, chosen.name)}
+					{receivingHint(chosen.provider_kind, chosen.name)}
 				</p>
 			{/if}
 

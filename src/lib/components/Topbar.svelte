@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { haptic } from '$lib/app-chrome';
 	import { t } from '$lib/i18n';
+	import AddressSwitcher from './AddressSwitcher.svelte';
 	import Icon from './Icon.svelte';
 	import LocaleSwitcher from './LocaleSwitcher.svelte';
 	import type { MailAddress } from '$lib/types';
@@ -11,11 +12,13 @@
 		userName,
 		userEmail,
 		addresses,
+		activeDomainId,
 		onLogout
 	}: {
 		userName: string;
 		userEmail: string;
 		addresses: MailAddress[];
+		activeDomainId: string | null;
 		onLogout: () => void;
 	} = $props();
 
@@ -33,13 +36,18 @@
 		query = $page.url.searchParams.get('q') ?? '';
 	});
 
-	// Recipients see the sending identity, not the login email.
-	const primaryAddress = $derived(
-		addresses.find((address) => address.is_default)?.address ?? addresses[0]?.address ?? userEmail
+	const filteredId = $derived($page.url.searchParams.get('address'));
+	const activeAddress = $derived(
+		addresses.find((address) => address.id === filteredId) ??
+			addresses.find((address) => address.is_default) ??
+			addresses[0] ??
+			null
 	);
+	const primaryAddress = $derived(activeAddress?.address ?? userEmail);
+	const displayName = $derived(activeAddress?.label?.trim() || userName);
 
 	const initials = $derived(
-		userName
+		displayName
 			.split(/\s+/)
 			.filter(Boolean)
 			.slice(0, 2)
@@ -101,7 +109,7 @@
 				}}
 			>
 				<span class="account-text">
-					<span class="account-name">{userName}</span>
+					<span class="account-name">{displayName}</span>
 					<span class="account-address">{primaryAddress}</span>
 				</span>
 				<span class="avatar">{initials}</span>
@@ -116,9 +124,20 @@
 				></button>
 				<div class="menu" role="menu">
 					<p class="menu-head">
-						<span class="menu-name">{userName}</span>
+						<span class="menu-name">{displayName}</span>
 						<span class="menu-address">{primaryAddress}</span>
 					</p>
+					{#if addresses.length > 0}
+						<div class="menu-switcher">
+							<AddressSwitcher
+								{addresses}
+								{activeDomainId}
+								accountName={userName}
+								embedded
+								onClose={() => (menuOpen = false)}
+							/>
+						</div>
+					{/if}
 					<a href="/settings" class="menu-item" role="menuitem" onclick={() => (menuOpen = false)}>
 						<Icon name="user-settings-line" size={15} /> {t('nav.settings')}
 					</a>
@@ -324,6 +343,12 @@
 	.menu-item:hover {
 		background: var(--color-surface-muted);
 		color: var(--color-text);
+	}
+
+	.menu-switcher {
+		padding: 0.25rem 0 0.375rem;
+		margin-bottom: 0.125rem;
+		box-shadow: inset 0 -1px 0 var(--color-line);
 	}
 
 	@media (min-width: 901px) {

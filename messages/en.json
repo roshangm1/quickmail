@@ -73,7 +73,11 @@
 		"moreAddresses": "More addresses",
 		"lightMode": "Light mode",
 		"darkMode": "Dark mode",
-		"account": "Account"
+		"account": "Account",
+		"switchMailbox": "Switch mailbox",
+		"allMailboxes": "All inboxes",
+		"allMailboxesHint": "Mail from every address",
+		"closeMenu": "Close mailbox menu"
 	},
 	"auth": {
 		"signInTitle": "Sign in — {app}",
@@ -144,29 +148,36 @@
 	"provider": {
 		"resend": "Resend",
 		"cloudflare": "Cloudflare Email",
+		"and": "{a} and {b}",
 		"missingTitle": {
 			"resend": "Resend API key missing",
-			"cloudflare": "Cloudflare Email is not configured"
+			"cloudflare": "Cloudflare Email is not configured",
+			"both": "No mail provider is configured"
 		},
 		"missingHint": {
 			"resend": "wrangler secret put RESEND_API_KEY",
-			"cloudflare": "EMAIL_PROVIDER=cloudflare\nCLOUDFLARE_MAIL_DOMAINS=yourdomain.com"
+			"cloudflare": "Set CLOUDFLARE_MAIL_DOMAINS and add a send_email binding named EMAIL",
+			"both": "Add RESEND_API_KEY and/or CLOUDFLARE_MAIL_DOMAINS plus the EMAIL binding. Different domains can use different backends."
 		},
 		"noDomainsTitle": {
 			"resend": "No domains in this Resend account",
-			"cloudflare": "No domains in CLOUDFLARE_MAIL_DOMAINS"
+			"cloudflare": "No domains in CLOUDFLARE_MAIL_DOMAINS",
+			"both": "No domains from the configured providers"
 		},
 		"noDomainsBody": {
 			"resend": "Add and verify a domain at resend.com/domains, then reload this page.",
-			"cloudflare": "Onboard the domain in Cloudflare Email Service, then set CLOUDFLARE_MAIL_DOMAINS and reload."
+			"cloudflare": "Onboard the domain in Cloudflare Email Service, then set CLOUDFLARE_MAIL_DOMAINS and reload.",
+			"both": "Verify a domain in Resend and/or add hostnames to CLOUDFLARE_MAIL_DOMAINS, then reload. One hostname cannot use both backends."
 		},
 		"domainPickerSubtitle": {
 			"resend": "These are the domains your Resend account can send and receive on. Pick the one you want to use — you can add more later.",
-			"cloudflare": "These are the domains listed in CLOUDFLARE_MAIL_DOMAINS. Pick the one you want to use — you can add more later."
+			"cloudflare": "These are the domains listed in CLOUDFLARE_MAIL_DOMAINS. Pick the one you want to use — you can add more later.",
+			"both": "These are the domains from every configured provider. Pick one — you can connect more later, including from the other backend."
 		},
 		"onboardingSubtitle": {
 			"resend": "Pick the domains from your Resend account that you want in this dashboard.",
-			"cloudflare": "Pick the domains from CLOUDFLARE_MAIL_DOMAINS that you want in this dashboard."
+			"cloudflare": "Pick the domains from CLOUDFLARE_MAIL_DOMAINS that you want in this dashboard.",
+			"both": "Pick domains from Resend and/or Cloudflare Email. Each hostname uses one backend."
 		},
 		"receivingHint": {
 			"resend": "Receiving isn't enabled on {domain} yet — you can send, but inbound mail won't arrive until you add the MX record in Resend.",
@@ -343,6 +354,9 @@
 		"removeAddress": "Remove {address}",
 		"mailboxSignature": "Signature for this address",
 		"addressLabel": "Address",
+		"addAddressTitle": "Add an address",
+		"addAddressHint": "Create another From identity on a connected domain.",
+		"addMailbox": "Add mailbox",
 		"canSendNotReceive": "{domain} can send, but inbound is off.",
 		"couldNotAddAddress": "Could not add that address",
 		"couldNotSaveName": "Could not save that name",
@@ -437,7 +451,7 @@
 	},
 	"admin": {
 		"title": "Admin — {app}",
-		"domainsHint": "Catch-all gets unmatched mail.",
+		"domainsHint": "Catch-all gets unmatched mail. Each domain uses one provider — Resend and Cloudflare Email can both be connected on this instance.",
 		"addressCount": "{count} address",
 		"addressCountPlural": "{count} addresses",
 		"catchall": "Catch-all",

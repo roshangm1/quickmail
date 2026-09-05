@@ -1,21 +1,24 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import AddressSwitcher from './AddressSwitcher.svelte';
 	import Icon from './Icon.svelte';
 	import DomainSwitcher from './DomainSwitcher.svelte';
 	import LocaleSwitcher from './LocaleSwitcher.svelte';
 	import { haptic, isMailboxPath, isMorePath } from '$lib/app-chrome';
 	import { t } from '$lib/i18n';
-	import type { Domain, MailboxCounts } from '$lib/types';
+	import type { Domain, MailAddress, MailboxCounts } from '$lib/types';
 
 	let {
 		counts,
 		domains,
+		addresses,
 		activeDomainId,
 		isAdmin,
 		onLogout
 	}: {
 		counts: MailboxCounts;
 		domains: Domain[];
+		addresses: MailAddress[];
 		activeDomainId: string | null;
 		isAdmin: boolean;
 		onLogout: () => void;
@@ -166,6 +169,13 @@
 				</a>
 			{/if}
 		</nav>
+
+		{#if addresses.length > 0}
+			<div class="sheet-section">
+				<p class="sheet-title">{t('account.addresses')}</p>
+				<AddressSwitcher {addresses} {activeDomainId} embedded />
+			</div>
+		{/if}
 
 		{#if domains.length > 1}
 			<div class="sheet-section">
