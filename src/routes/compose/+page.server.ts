@@ -8,6 +8,8 @@ export const load: PageServerLoad = async ({ locals, platform, url }) => {
 		dest.searchParams.set('compose', '1');
 		const draft = url.searchParams.get('draft');
 		if (draft) dest.searchParams.set('draft', draft);
+		const address = url.searchParams.get('address');
+		if (address) dest.searchParams.set('address', address);
 		throw redirect(303, `${dest.pathname}?${dest.searchParams.toString()}`);
 	}
 

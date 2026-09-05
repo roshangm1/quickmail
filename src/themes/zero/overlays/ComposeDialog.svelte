@@ -7,6 +7,8 @@
 	import Icon from '../icons/Icon.svelte';
 	import ComposerActions from './ComposerActions.svelte';
 	import { t } from '$lib/i18n';
+	import { preferredFromAddressId } from '$lib/mail/mailbox-identity';
+	import { page } from '$app/stores';
 
 	let {
 		addresses,
@@ -18,11 +20,11 @@
 		onClose: () => void;
 	} = $props();
 
-	const defaultAddressId = $derived(
-		addresses.find((address) => address.is_default)?.id ?? addresses[0]?.id ?? ''
+	const suggestedFromId = $derived(
+		preferredFromAddressId(addresses, $page.url.searchParams)
 	);
 	let chosenAddressId = $state('');
-	const fromAddressId = $derived(chosenAddressId || defaultAddressId);
+	const fromAddressId = $derived(chosenAddressId || suggestedFromId);
 
 	let activeDraft = $state<string | null>(null);
 	let to = $state('');

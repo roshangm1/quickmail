@@ -14,6 +14,20 @@ export function mailboxTitle(address: MailAddress): string {
 	return address.label?.trim() || address.address;
 }
 
+/** From identity: draft’s address, then the switched mailbox, then the default. */
+export function preferredFromAddressId(
+	addresses: MailAddress[],
+	search: URLSearchParams,
+	draftAddressId?: string | null
+): string {
+	if (draftAddressId && addresses.some((address) => address.id === draftAddressId)) {
+		return draftAddressId;
+	}
+	const selected = search.get('address')?.trim();
+	if (selected && addresses.some((address) => address.id === selected)) return selected;
+	return addresses.find((address) => address.is_default)?.id ?? addresses[0]?.id ?? '';
+}
+
 export function mailboxSubtitle(address: MailAddress): string | null {
 	const label = address.label?.trim();
 	if (label && label.toLowerCase() !== address.address.toLowerCase()) {

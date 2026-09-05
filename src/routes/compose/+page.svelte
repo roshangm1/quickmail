@@ -9,6 +9,7 @@
 	import { APP_NAME } from '$lib/constants';
 	import { t } from '$lib/i18n';
 	import { withMailboxFilter } from '$lib/mail/folders';
+	import { preferredFromAddressId } from '$lib/mail/mailbox-identity';
 	import { page } from '$app/stores';
 	import type { OutboundAttachmentInput } from '$lib/types';
 	import type { PageData } from './$types';
@@ -16,13 +17,13 @@
 	let { data }: { data: PageData } = $props();
 
 	const addresses = $derived(data.addresses);
-	const defaultAddressId = $derived(
-		addresses.find((address) => address.is_default)?.id ?? addresses[0]?.id ?? ''
+	const suggestedFromId = $derived(
+		preferredFromAddressId(addresses, $page.url.searchParams, data.draft?.address_id)
 	);
 
-	// Falls back to the default identity until the composer picks another.
+	// Falls back to the switched mailbox (or default) until the composer picks another.
 	let chosenAddressId = $state('');
-	const fromAddressId = $derived(chosenAddressId || defaultAddressId);
+	const fromAddressId = $derived(chosenAddressId || suggestedFromId);
 
 	// The draft seeds the form once; after that the fields own their values.
 	const draft = untrack(() => data.draft);

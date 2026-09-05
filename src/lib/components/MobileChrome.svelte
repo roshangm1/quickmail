@@ -128,7 +128,7 @@
 </nav>
 
 <a
-	href="/compose"
+	href={withMailboxFilter('/compose', $page.url.searchParams)}
 	class="compose-fab"
 	class:hidden={moreOpen || !showFab}
 	aria-label={t('nav.compose')}

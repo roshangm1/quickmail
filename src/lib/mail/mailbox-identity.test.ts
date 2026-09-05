@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { MailAddress } from '$lib/types';
-import { mailboxInitials, mailboxSubtitle, mailboxTitle } from './mailbox-identity';
+import { mailboxInitials, mailboxSubtitle, mailboxTitle, preferredFromAddressId } from './mailbox-identity';
 
 function address(partial: Partial<MailAddress> & Pick<MailAddress, 'address'>): MailAddress {
 	return {
@@ -28,6 +28,28 @@ test('mailbox initials fall back to local and domain letters', () => {
 test('mailbox title prefers the From name', () => {
 	assert.equal(mailboxTitle(address({ address: 'you@example.com', label: 'Support' })), 'Support');
 	assert.equal(mailboxTitle(address({ address: 'you@example.com' })), 'you@example.com');
+});
+
+test('compose From prefers the switched mailbox over the default', () => {
+	const def = address({ id: 'default', address: 'me@example.com', is_default: true });
+	const other = address({ id: 'other', address: 'jobs@example.com' });
+	assert.equal(
+		preferredFromAddressId([def, other], new URLSearchParams('address=other')),
+		'other'
+	);
+	assert.equal(preferredFromAddressId([def, other], new URLSearchParams()), 'default');
+	assert.equal(
+		preferredFromAddressId([def, other], new URLSearchParams(), 'other'),
+		'other'
+	);
+	assert.equal(
+		preferredFromAddressId([def, other], new URLSearchParams('address=other'), 'default'),
+		'default'
+	);
+	assert.equal(
+		preferredFromAddressId([def, other], new URLSearchParams('address=missing')),
+		'default'
+	);
 });
 
 test('mailbox subtitle is the address when a distinct name exists', () => {
