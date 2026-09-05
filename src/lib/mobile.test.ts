@@ -131,6 +131,7 @@ test('service worker is a classic worker, not a Vite module', () => {
 	const source = readFileSync(join(root, 'src/service-worker.ts'), 'utf8');
 	assert.match(source, /addEventListener\('install'/);
 	assert.match(source, /addEventListener\('push'/);
+	assert.match(source, /mail:changed/);
 	assert.doesNotMatch(source, /import\s+['"]\/@fs/);
 });
 
