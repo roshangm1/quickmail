@@ -1,11 +1,12 @@
 export async function runMailAction(
 	action: string,
-	ids: string[] = []
+	ids: string[] = [],
+	extra: { until?: string } = {}
 ): Promise<{ ok: boolean; affected?: number; error?: string }> {
 	const response = await fetch('/api/mail/actions', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ action, ids })
+		body: JSON.stringify({ action, ids, ...extra })
 	});
 	const body = (await response.json()) as { ok?: boolean; affected?: number; error?: string };
 	if (!response.ok) {

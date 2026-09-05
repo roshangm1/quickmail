@@ -28,7 +28,7 @@ export type DeliveryStatus =
 	| 'failed';
 
 /** What the `emails.status` column can hold — delivery state, or an unsent draft. */
-export type MailStatus = DeliveryStatus | 'draft';
+export type MailStatus = DeliveryStatus | 'draft' | 'scheduled';
 
 /** A mail backend that can be enabled on this Worker. More than one may be active. */
 export type EmailProviderKind = 'resend' | 'cloudflare';
@@ -76,7 +76,7 @@ export type MailAddress = {
 };
 
 /** The mailboxes the sidebar can show. Drafts/Trash are flags, not folders. */
-export type MailboxView = 'inbox' | 'archive' | 'starred' | 'drafts' | 'sent' | 'trash';
+export type MailboxView = 'inbox' | 'archive' | 'starred' | 'drafts' | 'sent' | 'trash' | 'snoozed';
 
 export type MailboxCounts = {
 	inbox: number;
@@ -86,6 +86,7 @@ export type MailboxCounts = {
 	drafts: number;
 	sent: number;
 	trash: number;
+	snoozed: number;
 };
 
 export type EmailRow = {
@@ -115,10 +116,12 @@ export type EmailRow = {
 	status: MailStatus | null;
 	status_at: string | null;
 	status_detail: string | null;
+	scheduled_at: string | null;
 	is_read: number;
 	is_starred: number;
 	deleted_at: string | null;
 	archived_at: string | null;
+	snoozed_until: string | null;
 	created_at: string;
 };
 
@@ -137,7 +140,7 @@ export type EmailSummary = {
 	has_attachments: boolean;
 	domain_id: string | null;
 	address_id: string | null;
-	status: DeliveryStatus | null;
+	status: DeliveryStatus | 'scheduled' | null;
 	created_at: string;
 };
 
@@ -169,7 +172,9 @@ export type ThreadSummary = {
 	/** Which registered address the newest message arrived on, when known. */
 	address_id: string | null;
 	/** Delivery state of the newest message, when we sent it. */
-	status: DeliveryStatus | null;
+	status: DeliveryStatus | 'scheduled' | null;
+	/** Future ISO time while the conversation is snoozed. */
+	snoozed_until: string | null;
 	created_at: string;
 };
 
@@ -203,12 +208,14 @@ export type ThreadMessage = {
 	body_html: string | null;
 	message_id: string | null;
 	references_header: string | null;
-	status: DeliveryStatus | null;
+	status: DeliveryStatus | 'scheduled' | null;
 	status_detail: string | null;
+	scheduled_at: string | null;
 	is_read: boolean;
 	is_starred: boolean;
 	deleted_at: string | null;
 	archived_at: string | null;
+	snoozed_until: string | null;
 	created_at: string;
 	attachments: EmailAttachmentMeta[];
 };

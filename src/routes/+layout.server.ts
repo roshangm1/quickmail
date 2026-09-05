@@ -11,7 +11,8 @@ const EMPTY_COUNTS: MailboxCounts = {
 	starred: 0,
 	drafts: 0,
 	sent: 0,
-	trash: 0
+	trash: 0,
+	snoozed: 0
 };
 
 export const load: LayoutServerLoad = async ({ locals, platform }) => {

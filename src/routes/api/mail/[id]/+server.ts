@@ -24,6 +24,8 @@ type ReplyBody = {
 	text?: string;
 	html?: string;
 	attachments?: OutboundAttachmentInput[];
+	scheduledAt?: string;
+	holdUndo?: boolean;
 };
 
 export const GET: RequestHandler = async ({ params, locals, platform }) => {
@@ -129,7 +131,13 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 		: await resolveReplyFromAddress(db, locals.user, original);
 
 	try {
-		const { emailId } = await sendAndStore(
+		const holdUndo =
+			body.holdUndo === true ||
+			(body.holdUndo !== false &&
+				!body.scheduledAt &&
+				(locals.authMethod === 'session' || locals.authMethod === 'mobile_session'));
+
+		const { emailId, scheduledAt, undoUntil } = await sendAndStore(
 			{ DB: db, ATTACHMENTS: bucket },
 			sendProviderResolver(platform, db),
 			locals.user,
@@ -147,11 +155,18 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 				// when they answer — keeps the conversation together.
 				references: buildReferences(original.references_header, original.message_id),
 				replyToEmailId: original.id,
-				attachments: body.attachments
+				attachments: body.attachments,
+				scheduledAt: body.scheduledAt,
+				holdUndo
 			}
 		);
 
-		return json({ ok: true, id: emailId });
+		return json({
+			ok: true,
+			id: emailId,
+			scheduledAt: scheduledAt ?? null,
+			undoUntil: undoUntil ?? null
+		});
 	} catch (error) {
 		return json(
 			{ error: describeProviderError(error, 'Failed to send reply') },

@@ -27,12 +27,16 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 	}
 
 	try {
+		const holdUndo =
+			body.holdUndo === true ||
+			(body.holdUndo !== false &&
+				(locals.authMethod === 'session' || locals.authMethod === 'mobile_session'));
 		const { emailId } = await sendForwardedMessages(
 			{ DB: db, ATTACHMENTS: bucket },
 			sendProviderResolver(platform, db),
 			locals.user,
 			messages,
-			body
+			{ ...body, holdUndo }
 		);
 
 		return json({ ok: true, id: emailId });

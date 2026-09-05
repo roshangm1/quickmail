@@ -147,7 +147,9 @@ const MOBILE_SESSION_ROUTES: Array<Pick<RouteRule, 'method' | 'match'>> = [
 	{ method: 'GET', match: (pathname) => pathname === '/api/devices' },
 	{ method: 'DELETE', match: (pathname) => /^\/api\/devices\/[^/]+$/.test(pathname) },
 	{ method: 'GET', match: (pathname) => pathname === '/api/settings/signature' },
-	{ method: 'PATCH', match: (pathname) => pathname === '/api/settings/signature' }
+	{ method: 'PATCH', match: (pathname) => pathname === '/api/settings/signature' },
+	{ method: 'GET', match: (pathname) => pathname === '/api/settings/undo-send' },
+	{ method: 'PATCH', match: (pathname) => pathname === '/api/settings/undo-send' }
 ];
 
 export function canAccessDuringFirstLogin(pathname: string, method: string): boolean {
@@ -166,7 +168,10 @@ export const MAIL_ACTIONS = [
 	'restore',
 	'delete',
 	'read-all',
-	'empty-trash'
+	'empty-trash',
+	'snooze',
+	'unsnooze',
+	'unschedule'
 ] as const;
 
 export type MailAction = (typeof MAIL_ACTIONS)[number];
@@ -204,8 +209,15 @@ export function authorizeMailAction(input: {
 		case 'unstar':
 		case 'archive':
 		case 'unarchive':
+		case 'snooze':
+		case 'unsnooze':
 			if (!input.scopes.includes('mail:read')) {
 				return { ok: false, status: 403, error: 'This API key needs mail:read.' };
+			}
+			return { ok: true };
+		case 'unschedule':
+			if (!input.scopes.includes('mail:send')) {
+				return { ok: false, status: 403, error: 'This API key needs mail:send.' };
 			}
 			return { ok: true };
 		case 'trash':

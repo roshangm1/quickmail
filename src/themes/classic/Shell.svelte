@@ -12,6 +12,7 @@
 		isUtilityPath,
 		noteInAppNavigation
 	} from '$lib/app-chrome';
+	import UndoToast from '$lib/components/UndoToast.svelte';
 	import { withMailboxFilter } from '$lib/mail/folders';
 	import type { ThemeShellProps } from '$lib/ui-theme/types';
 
@@ -91,6 +92,8 @@
 			{/if}
 		</main>
 	</div>
+
+	<UndoToast />
 
 	{#if !stacked}
 		<MobileChrome

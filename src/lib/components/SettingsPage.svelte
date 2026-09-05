@@ -14,6 +14,7 @@
 		type ThemePreference
 	} from '$lib/theme';
 	import { MAX_EMAIL_SIGNATURE_LENGTH } from '$lib/email-signature';
+	import { UNDO_SEND_OPTIONS, UNDO_SEND_SECONDS } from '$lib/mail/schedule';
 	import { APP_NAME } from '$lib/constants';
 	import { formatDeviceActivity } from '$lib/device-activity';
 	import { intlLocale, t } from '$lib/i18n';
@@ -37,6 +38,7 @@
 		domains: Domain[];
 		addresses: MailAddress[];
 		signature: string;
+		undoSendSeconds: number;
 		apiTokens: ApiTokenSummary[];
 		push: { configured: boolean; publicKey: string | null };
 		isAdmin: boolean;
@@ -61,6 +63,7 @@
 		{ keys: '⌘K', label: t('shortcuts.search') },
 		{ keys: 'C', label: t('shortcuts.compose') },
 		{ keys: 'E', label: t('shortcuts.archive') },
+		{ keys: 'H', label: t('shortcuts.snooze') },
 		{ keys: 'D', label: t('shortcuts.moveToBin') },
 		{ keys: 'R', label: t('shortcuts.reply') },
 		{ keys: 'A', label: t('shortcuts.replyAll') },
@@ -71,6 +74,7 @@
 		{ keys: 'G then D', label: t('shortcuts.goToDrafts') },
 		{ keys: 'G then T', label: t('shortcuts.goToSent') },
 		{ keys: 'G then A', label: t('shortcuts.goToArchive') },
+		{ keys: 'G then Z', label: t('shortcuts.goToSnoozed') },
 		{ keys: 'G then B', label: t('shortcuts.goToBin') },
 		{ keys: 'G then S', label: t('shortcuts.goToSettings') },
 		{ keys: '1 / 2 / 3', label: t('shortcuts.filters') },
@@ -130,6 +134,32 @@
 	let signatureBusy = $state(false);
 	let signatureError = $state('');
 	let signatureSaved = $state(false);
+	let undoSendSeconds = $state(untrack(() => data.undoSendSeconds ?? UNDO_SEND_SECONDS));
+	let undoSendBusy = $state(false);
+	let undoSendError = $state('');
+
+	async function chooseUndoSend(seconds: number) {
+		if (undoSendBusy || seconds === undoSendSeconds) return;
+		undoSendBusy = true;
+		undoSendError = '';
+		try {
+			const res = await fetch('/api/settings/undo-send', {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ seconds })
+			});
+			const body = (await res.json()) as { seconds?: number; error?: string };
+			if (!res.ok || typeof body.seconds !== 'number') {
+				undoSendError = body.error ?? t('settings.couldNotSaveUndoSend');
+				return;
+			}
+			undoSendSeconds = body.seconds;
+		} catch {
+			undoSendError = t('common.networkError');
+		} finally {
+			undoSendBusy = false;
+		}
+	}
 
 	async function saveSignature(event: SubmitEvent) {
 		event.preventDefault();
@@ -669,6 +699,27 @@
 			{#if signatureSaved}<p class="saved">{t('common.saved')}</p>{/if}
 		</form>
 	</section>
+
+	<section class="surface-lg card">
+		<h2><Icon name="time-line" size={18} /> {t('settings.undoSend')}</h2>
+		<p class="card-hint">{t('settings.undoSendHint')}</p>
+		<div class="undo-options" role="radiogroup" aria-label={t('settings.undoSend')}>
+			{#each UNDO_SEND_OPTIONS as seconds (seconds)}
+				<button
+					type="button"
+					role="radio"
+					aria-checked={undoSendSeconds === seconds}
+					class="undo-option"
+					class:selected={undoSendSeconds === seconds}
+					disabled={undoSendBusy}
+					onclick={() => chooseUndoSend(seconds)}
+				>
+					{seconds === 0 ? t('settings.undoSendOff') : t('settings.undoSendSeconds', { seconds })}
+				</button>
+			{/each}
+		</div>
+		{#if undoSendError}<p class="error">{undoSendError}</p>{/if}
+	</section>
 	{/if}
 
 	{#if show('connections')}
@@ -1095,6 +1146,34 @@
 
 	.signature-form {
 		margin-top: 1rem;
+	}
+
+	.undo-options {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-top: 1rem;
+	}
+
+	.undo-option {
+		min-height: 2.25rem;
+		padding: 0.4rem 0.75rem;
+		border-radius: 0.75rem;
+		border: 1px solid var(--color-line, var(--z-border, #e5e5e5));
+		background: var(--color-surface, var(--z-panel, #fff));
+		color: inherit;
+		font-size: 0.8125rem;
+		font-weight: 550;
+		cursor: pointer;
+	}
+
+	.undo-option.selected {
+		border-color: var(--color-accent, #90ac9a);
+		box-shadow: inset 0 0 0 1px var(--color-accent, #90ac9a);
+	}
+
+	.undo-option:disabled {
+		opacity: 0.55;
 	}
 
 	.device-list {

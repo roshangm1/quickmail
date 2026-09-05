@@ -15,6 +15,7 @@
 			title: t('shortcuts.groupMail'),
 			rows: [
 				{ keys: 'E', label: t('shortcuts.archive') },
+				{ keys: 'H', label: t('shortcuts.snooze') },
 				{ keys: 'D', label: t('shortcuts.moveToBin') },
 				{ keys: 'S', label: t('shortcuts.star') },
 				{ keys: 'U', label: t('shortcuts.markUnread') },
@@ -31,6 +32,7 @@
 				{ keys: 'G D', label: t('shortcuts.drafts') },
 				{ keys: 'G T', label: t('shortcuts.sent') },
 				{ keys: 'G A', label: t('nav.archive') },
+				{ keys: 'G Z', label: t('nav.snoozed') },
 				{ keys: 'G B', label: t('nav.bin') },
 				{ keys: 'G S', label: t('nav.settings') }
 			]

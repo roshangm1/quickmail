@@ -19,6 +19,8 @@ type SendMailBody = {
 	text?: string;
 	html?: string;
 	attachments?: OutboundAttachmentInput[];
+	scheduledAt?: string;
+	holdUndo?: boolean;
 };
 
 function mailboxView(url: URL): MailboxView {
@@ -30,6 +32,7 @@ function mailboxView(url: URL): MailboxView {
 		case 'drafts':
 		case 'sent':
 		case 'trash':
+		case 'snoozed':
 			return view;
 		default:
 			break;
@@ -81,7 +84,13 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 	}
 
 	try {
-		const { emailId } = await sendAndStore(
+		const holdUndo =
+			body.holdUndo === true ||
+			(body.holdUndo !== false &&
+				!body.scheduledAt &&
+				(locals.authMethod === 'session' || locals.authMethod === 'mobile_session'));
+
+		const { emailId, scheduledAt, undoUntil } = await sendAndStore(
 			{ DB: db, ATTACHMENTS: bucket },
 			sendProviderResolver(platform, db),
 			locals.user,
@@ -93,7 +102,9 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 				subject: body.subject,
 				text: body.text,
 				html: body.html,
-				attachments: body.attachments
+				attachments: body.attachments,
+				scheduledAt: body.scheduledAt,
+				holdUndo
 			}
 		);
 
@@ -101,7 +112,7 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 			await deleteDraft(db, locals.user.id, body.draftId);
 		}
 
-		return json({ ok: true, id: emailId });
+		return json({ ok: true, id: emailId, scheduledAt: scheduledAt ?? null, undoUntil: undoUntil ?? null });
 	} catch (error) {
 		return json({ error: describeProviderError(error) }, { status: statusForProviderError(error) });
 	}

@@ -3,6 +3,8 @@
 	import { page } from '$app/stores';
 	import { formatRelativeDate } from '$lib/utils/date';
 	import { runMailAction } from '$lib/mail/client';
+	import { laterToday, toIso } from '$lib/mail/schedule';
+	import ScheduleMenu from '../overlays/ScheduleMenu.svelte';
 	import { initials, participantName } from '$lib/mail/folders';
 	import { t } from '$lib/i18n';
 	import Tooltip from '$lib/components/Tooltip.svelte';
@@ -117,8 +119,8 @@
 		}
 	}
 
-	async function act(action: string, ids: string[]) {
-		await runMailAction(action, ids);
+	async function act(action: string, ids: string[], extra: { until?: string } = {}) {
+		await runMailAction(action, ids, extra);
 		await invalidateAll();
 	}
 
@@ -160,6 +162,9 @@
 		if (event.key === 'e') {
 			event.preventDefault();
 			void act(view === 'archive' ? 'unarchive' : 'archive', ids);
+		} else if (event.key === 'h') {
+			event.preventDefault();
+			void act(view === 'snoozed' ? 'unsnooze' : 'snooze', ids, view === 'snoozed' ? {} : { until: toIso(laterToday()) });
 		} else if (event.key === 'd' || event.key === 'Backspace') {
 			event.preventDefault();
 			void act(view === 'trash' ? 'restore' : 'trash', ids);
@@ -317,18 +322,40 @@
 									<Icon name="Star2" class={thread.is_starred ? 'z-star-on' : ''} size={14} />
 								</button>
 							</Tooltip>
-							<Tooltip text={view === 'archive' ? t('mailbox.moveToInbox') : t('nav.archive')}>
-								<button
-									type="button"
-									aria-label={view === 'archive' ? t('mailbox.moveToInbox') : t('nav.archive')}
-									onclick={(event) => {
-										event.stopPropagation();
-										void act(view === 'archive' ? 'unarchive' : 'archive', [thread.latest_id]);
-									}}
-								>
-									<Icon name="Archive2" size={14} />
-								</button>
-							</Tooltip>
+							{#if view === 'snoozed'}
+								<Tooltip text={t('mailbox.unsnooze')}>
+									<button
+										type="button"
+										aria-label={t('mailbox.unsnooze')}
+										onclick={(event) => {
+											event.stopPropagation();
+											void act('unsnooze', [thread.latest_id]);
+										}}
+									>
+										<Icon name="Inbox" size={14} />
+									</button>
+								</Tooltip>
+							{:else if view !== 'drafts' && view !== 'trash'}
+								<Tooltip text={t('mailbox.snooze')}>
+									<ScheduleMenu
+										title={t('mailbox.snooze')}
+										onPick={(until) =>
+											void act('snooze', [thread.latest_id], { until: toIso(until) })}
+									/>
+								</Tooltip>
+								<Tooltip text={view === 'archive' ? t('mailbox.moveToInbox') : t('nav.archive')}>
+									<button
+										type="button"
+										aria-label={view === 'archive' ? t('mailbox.moveToInbox') : t('nav.archive')}
+										onclick={(event) => {
+											event.stopPropagation();
+											void act(view === 'archive' ? 'unarchive' : 'archive', [thread.latest_id]);
+										}}
+									>
+										<Icon name="Archive2" size={14} />
+									</button>
+								</Tooltip>
+							{/if}
 							<Tooltip text={view === 'trash' ? t('mailbox.restore') : t('nav.bin')}>
 								<button
 									type="button"

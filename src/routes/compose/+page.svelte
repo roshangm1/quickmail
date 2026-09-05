@@ -9,6 +9,9 @@
 	import { APP_NAME } from '$lib/constants';
 	import { t } from '$lib/i18n';
 	import { withMailboxFilter } from '$lib/mail/folders';
+	import { postMail } from '$lib/mail/send';
+	import { toIso } from '$lib/mail/schedule';
+	import SendLaterMenu from '$lib/components/SendLaterMenu.svelte';
 	import { preferredFromAddressId } from '$lib/mail/mailbox-identity';
 	import { page } from '$app/stores';
 	import type { OutboundAttachmentInput } from '$lib/types';
@@ -98,8 +101,8 @@
 		window.location.href = withMailboxFilter('/drafts', $page.url.searchParams);
 	}
 
-	async function submit(event: SubmitEvent) {
-		event.preventDefault();
+	async function sendMessage(scheduledAt?: string) {
+		if (sending) return;
 		if (isHtmlEmpty(html)) {
 			error = t('compose.writeMessage');
 			return;
@@ -109,32 +112,30 @@
 		error = '';
 
 		try {
-			const res = await fetch('/api/mail', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					draftId: draftId ?? undefined,
-					fromAddressId,
-					to,
-					cc: cc.trim() || undefined,
-					bcc: bcc.trim() || undefined,
-					subject,
-					html,
-					text: htmlToPlainText(html),
-					attachments
-				})
+			await postMail('/api/mail', {
+				draftId: draftId ?? undefined,
+				fromAddressId,
+				to,
+				cc: cc.trim() || undefined,
+				bcc: bcc.trim() || undefined,
+				subject,
+				html,
+				text: htmlToPlainText(html),
+				attachments,
+				scheduledAt
 			});
-			const body = await res.json();
-			if (!res.ok) {
-				error = body.error ?? t('compose.failedToSend');
-				return;
-			}
-			window.location.href = '/sent';
-		} catch {
-			error = t('common.networkError');
+			requestSkipViewTransition();
+			await goto(withMailboxFilter('/sent', $page.url.searchParams));
+		} catch (err) {
+			error = err instanceof Error ? err.message : t('compose.failedToSend');
 		} finally {
 			sending = false;
 		}
+	}
+
+	async function submit(event: SubmitEvent) {
+		event.preventDefault();
+		await sendMessage();
 	}
 </script>
 
@@ -157,9 +158,12 @@
 			<h1 class="page-title">{draftId ? t('compose.draft') : t('nav.compose')}</h1>
 			{#if savedAt}<span class="saved">{t('common.savedAt', { time: savedAt })}</span>{/if}
 		</div>
-		<button type="submit" class="btn-primary" disabled={sending}>
-			{sending ? t('common.sending') : t('common.send')}
-		</button>
+		<div class="send-group">
+			<SendLaterMenu disabled={sending} onPick={(until) => void sendMessage(toIso(until))} />
+			<button type="submit" class="btn-primary" disabled={sending}>
+				{sending ? t('common.sending') : t('common.send')}
+			</button>
+		</div>
 	</header>
 
 	<header class="compose-header">
@@ -186,10 +190,16 @@
 					<Icon name="delete-bin-line" size={15} />
 				</button>
 			{/if}
-			<button type="submit" class="btn-primary" disabled={sending}>
-				<Icon name="send-plane-2-fill" size={16} />
-				{sending ? t('common.sending') : t('common.send')}
-			</button>
+			<div class="send-group">
+				<SendLaterMenu
+					disabled={sending}
+					onPick={(until) => void sendMessage(toIso(until))}
+				/>
+				<button type="submit" class="btn-primary" disabled={sending}>
+					<Icon name="send-plane-2-fill" size={16} />
+					{sending ? t('common.sending') : t('common.send')}
+				</button>
+			</div>
 		</div>
 	</header>
 
@@ -336,6 +346,12 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+	}
+
+	.send-group {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.125rem;
 	}
 
 	.compose-fields {

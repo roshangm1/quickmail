@@ -18,6 +18,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
 test('treats mailbox roots as list screens', () => {
 	assert.equal(isMailboxPath('/inbox'), true);
+	assert.equal(isMailboxPath('/snoozed'), true);
 	assert.equal(isMailboxPath('/drafts'), true);
 	assert.equal(isMailboxPath('/mail/abc'), false);
 });
@@ -45,6 +46,7 @@ test('treats settings and admin as utility screens', () => {
 
 test('puts secondary destinations under More', () => {
 	assert.equal(isMorePath('/drafts'), true);
+	assert.equal(isMorePath('/snoozed'), true);
 	assert.equal(isMorePath('/trash'), true);
 	assert.equal(isMorePath('/settings'), true);
 	assert.equal(isMorePath('/admin'), true);

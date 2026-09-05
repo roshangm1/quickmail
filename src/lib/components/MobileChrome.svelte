@@ -168,6 +168,17 @@
 					<span class="sheet-count">{counts.archive}</span>
 				{/if}
 			</a>
+			<a
+				href={withMailboxFilter('/inbox?view=snoozed', $page.url.searchParams)}
+				class="sheet-link"
+				class:active={$page.url.pathname === '/snoozed' || $page.url.searchParams.get('view') === 'snoozed'}
+			>
+				<Icon name="time-line" size={20} />
+				<span>{t('nav.snoozed')}</span>
+				{#if counts.snoozed}
+					<span class="sheet-count">{counts.snoozed}</span>
+				{/if}
+			</a>
 			<a href={withMailboxFilter('/trash', $page.url.searchParams)} class="sheet-link" class:active={$page.url.pathname === '/trash'}>
 				<Icon name="delete-bin-line" size={20} />
 				<span>{t('nav.trash')}</span>

@@ -13,6 +13,8 @@ export type ForwardRequest = {
 	text?: string;
 	html?: string;
 	includeAttachments?: boolean;
+	holdUndo?: boolean;
+	scheduledAt?: string | null;
 };
 
 export async function readForwardedAttachments(
@@ -70,7 +72,9 @@ export async function sendForwardedMessages(
 		html,
 		attachments,
 		allowCombinedAttachments: ordered.length > 1,
-		subjectMatch: false
+		subjectMatch: false,
+		holdUndo: input.holdUndo,
+		scheduledAt: input.scheduledAt
 	});
 
 	return { emailId };

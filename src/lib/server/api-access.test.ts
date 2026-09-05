@@ -193,6 +193,22 @@ describe('API key access', () => {
 			authorizeMailAction({ action: 'unstar', authMethod: 'api_token', scopes: ['mail:read'] }),
 			{ ok: true }
 		);
+		assert.deepEqual(
+			authorizeMailAction({ action: 'snooze', authMethod: 'api_token', scopes: ['mail:read'] }),
+			{ ok: true }
+		);
+		assert.deepEqual(
+			authorizeMailAction({ action: 'unsnooze', authMethod: 'api_token', scopes: ['mail:read'] }),
+			{ ok: true }
+		);
+		assert.equal(
+			authorizeMailAction({ action: 'unschedule', authMethod: 'api_token', scopes: ['mail:read'] }).ok,
+			false
+		);
+		assert.deepEqual(
+			authorizeMailAction({ action: 'unschedule', authMethod: 'api_token', scopes: ['mail:send'] }),
+			{ ok: true }
+		);
 
 		assert.equal(
 			authorizeMailAction({ action: 'star', authMethod: 'api_token', scopes: ['mail:send'] }).ok,

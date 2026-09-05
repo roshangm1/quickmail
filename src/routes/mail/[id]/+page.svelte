@@ -9,6 +9,11 @@
 	import { APP_NAME } from '$lib/constants';
 	import { plural, t } from '$lib/i18n';
 	import { withMailboxFilter } from '$lib/mail/folders';
+	import { runMailAction } from '$lib/mail/client';
+	import { postMail } from '$lib/mail/send';
+	import { toIso } from '$lib/mail/schedule';
+	import SnoozeMenu from '$lib/components/SnoozeMenu.svelte';
+	import SendLaterMenu from '$lib/components/SendLaterMenu.svelte';
 	import { page } from '$app/stores';
 	import type { OutboundAttachmentInput } from '$lib/types';
 	import type { PageData } from './$types';
@@ -52,15 +57,30 @@
 			: null;
 	});
 
+	const snoozedUntil = $derived(
+		messages.reduce<string | null>((latestSnooze, message) => {
+			if (!message.snoozed_until || Date.parse(message.snoozed_until) <= Date.now()) {
+				return latestSnooze;
+			}
+			if (!latestSnooze || Date.parse(message.snoozed_until) > Date.parse(latestSnooze)) {
+				return message.snoozed_until;
+			}
+			return latestSnooze;
+		}, null)
+	);
+	const scheduled = $derived(messages.find((message) => message.status === 'scheduled') ?? null);
+
 	const backHref = $derived(
 		withMailboxFilter(
 			data.trashed
 				? '/trash'
-				: data.archived
-					? '/inbox?view=archive'
-					: latest?.direction === 'outbound'
-						? '/sent'
-						: '/inbox',
+				: snoozedUntil
+					? '/inbox?view=snoozed'
+					: data.archived
+						? '/inbox?view=archive'
+						: latest?.direction === 'outbound'
+							? '/sent'
+							: '/inbox',
 			$page.url.searchParams
 		)
 	);
@@ -110,6 +130,39 @@
 	async function markUnread() {
 		await patch({ isRead: false });
 		goto(backHref);
+	}
+
+	async function snooze(until: Date) {
+		if (!latest) return;
+		error = '';
+		try {
+			await runMailAction('snooze', [latest.id], { until: toIso(until) });
+			await goto(withMailboxFilter('/inbox', $page.url.searchParams));
+		} catch {
+			error = t('mailbox.conversationNetwork');
+		}
+	}
+
+	async function wake() {
+		if (!latest) return;
+		error = '';
+		try {
+			await runMailAction('unsnooze', [latest.id]);
+			await goto(withMailboxFilter('/inbox', $page.url.searchParams));
+		} catch {
+			error = t('mailbox.conversationNetwork');
+		}
+	}
+
+	async function cancelSend() {
+		if (!scheduled) return;
+		error = '';
+		try {
+			await runMailAction('unschedule', [scheduled.id]);
+			await goto(withMailboxFilter('/drafts', $page.url.searchParams));
+		} catch {
+			error = t('mailbox.conversationNetwork');
+		}
 	}
 
 	async function toggleArchive() {
@@ -211,28 +264,21 @@
 	}
 
 	/** Replies continue from the newest message, so the chain stays intact. */
-	async function sendReply(event: SubmitEvent) {
-		event.preventDefault();
+	async function sendReply(event?: SubmitEvent, scheduledAt?: string) {
+		event?.preventDefault();
+		if (sending) return;
 		if (!latest || isHtmlEmpty(replyHtml)) return;
 
 		sending = true;
 		error = '';
 
 		try {
-			const res = await fetch(`/api/mail/${latest.id}`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					html: replyHtml,
-					text: htmlToPlainText(replyHtml),
-					attachments: replyAttachments
-				})
+			await postMail(`/api/mail/${latest.id}`, {
+				html: replyHtml,
+				text: htmlToPlainText(replyHtml),
+				attachments: replyAttachments,
+				scheduledAt
 			});
-			const body = await res.json();
-			if (!res.ok) {
-				error = body.error ?? t('compose.failedToSend');
-				return;
-			}
 
 			replyHtml = '';
 			replyAttachments = [];
@@ -293,6 +339,28 @@
 				<button type="button" class="icon-btn" aria-label={t('mailbox.markUnread')} onclick={markUnread}>
 					<Icon name="mail-line" size={16} />
 				</button>
+				{#if snoozedUntil}
+					<button
+						type="button"
+						class="icon-btn"
+						aria-label={t('mailbox.unsnooze')}
+						onclick={() => void wake()}
+					>
+						<Icon name="inbox-line" size={16} />
+					</button>
+				{:else}
+					<SnoozeMenu compact onPick={(until) => void snooze(until)} />
+				{/if}
+				{#if scheduled}
+					<button
+						type="button"
+						class="icon-btn"
+						aria-label={t('compose.cancelSend')}
+						onclick={() => void cancelSend()}
+					>
+						<Icon name="time-line" size={16} />
+					</button>
+				{/if}
 				<button
 					type="button"
 					class="icon-btn"
@@ -438,6 +506,10 @@
 					<button type="button" class="btn-ghost" onclick={() => (replyOpen = false)}>
 						{t('common.cancel')}
 					</button>
+					<SendLaterMenu
+						disabled={sending}
+						onPick={(until) => void sendReply(undefined, toIso(until))}
+					/>
 					<button type="submit" class="btn-primary" disabled={sending}>
 						<Icon name="send-plane-2-fill" size={16} />
 						{sending ? t('common.sending') : t('common.send')}

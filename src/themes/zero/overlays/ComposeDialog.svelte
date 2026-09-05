@@ -8,6 +8,9 @@
 	import ComposerActions from './ComposerActions.svelte';
 	import { t } from '$lib/i18n';
 	import { preferredFromAddressId } from '$lib/mail/mailbox-identity';
+	import { postMail } from '$lib/mail/send';
+	import { toIso } from '$lib/mail/schedule';
+	import ScheduleMenu from './ScheduleMenu.svelte';
 	import { page } from '$app/stores';
 
 	let {
@@ -114,8 +117,8 @@
 		}
 	}
 
-	async function send(event: SubmitEvent) {
-		event.preventDefault();
+	async function sendMessage(scheduledAt?: string) {
+		if (sending) return;
 		if (isHtmlEmpty(html)) {
 			error = t('compose.writeMessage');
 			return;
@@ -123,33 +126,30 @@
 		sending = true;
 		error = '';
 		try {
-			const response = await fetch('/api/mail', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					draftId: activeDraft ?? undefined,
-					fromAddressId,
-					to,
-					cc: cc.trim() || undefined,
-					bcc: bcc.trim() || undefined,
-					subject,
-					html,
-					text: htmlToPlainText(html),
-					attachments
-				})
+			await postMail('/api/mail', {
+				draftId: activeDraft ?? undefined,
+				fromAddressId,
+				to,
+				cc: cc.trim() || undefined,
+				bcc: bcc.trim() || undefined,
+				subject,
+				html,
+				text: htmlToPlainText(html),
+				attachments,
+				scheduledAt
 			});
-			const body = (await response.json()) as { error?: string };
-			if (!response.ok) {
-				error = body.error ?? t('compose.failedToSend');
-				return;
-			}
 			await invalidateAll();
 			onClose();
-		} catch {
-			error = t('common.networkError');
+		} catch (err) {
+			error = err instanceof Error ? err.message : t('compose.failedToSend');
 		} finally {
 			sending = false;
 		}
+	}
+
+	async function send(event: SubmitEvent) {
+		event.preventDefault();
+		await sendMessage();
 	}
 
 	async function close() {
@@ -231,6 +231,12 @@
 
 			<ComposerActions bind:attachments sending={sending} error={error}>
 				{#snippet extra()}
+					<ScheduleMenu
+						title={t('compose.sendLater')}
+						label={t('compose.sendLater')}
+						prefer="above"
+						onPick={(until) => void sendMessage(toIso(until))}
+					/>
 					<button
 						type="button"
 						class="z-text-btn"

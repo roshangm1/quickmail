@@ -8,7 +8,8 @@ export const FOLDER_PATH: Record<MailboxView, string> = {
 	starred: '/starred',
 	drafts: '/drafts',
 	sent: '/sent',
-	trash: '/trash'
+	trash: '/trash',
+	snoozed: '/snoozed'
 };
 
 export function folderTitle(view: MailboxView, locale: string = DEFAULT_LOCALE): string {
@@ -25,6 +26,8 @@ export function folderTitle(view: MailboxView, locale: string = DEFAULT_LOCALE):
 			return translate(locale, 'nav.sent');
 		case 'trash':
 			return translate(locale, 'nav.bin');
+		case 'snoozed':
+			return translate(locale, 'nav.snoozed');
 		default: {
 			const _never: never = view;
 			return _never;
@@ -38,12 +41,16 @@ export const FOLDER_TITLE: Record<MailboxView, string> = {
 	starred: 'Starred',
 	drafts: 'Drafts',
 	sent: 'Sent',
-	trash: 'Bin'
+	trash: 'Bin',
+	snoozed: 'Snoozed'
 };
 
 export function viewFromLocation(pathname: string, search: URLSearchParams): MailboxView {
 	if (pathname === '/archive' || (pathname === '/inbox' && search.get('view') === 'archive')) {
 		return 'archive';
+	}
+	if (pathname === '/snoozed' || (pathname === '/inbox' && search.get('view') === 'snoozed')) {
+		return 'snoozed';
 	}
 	if (pathname === '/drafts') return 'drafts';
 	if (pathname === '/sent') return 'sent';
@@ -74,9 +81,11 @@ export function mailboxViewForEmail(email: {
 	archived_at: string | null;
 	status: string | null;
 	direction: 'inbound' | 'outbound';
+	snoozed_until?: string | null;
 }): MailboxView {
 	if (email.deleted_at) return 'trash';
 	if (email.status === 'draft') return 'drafts';
+	if (email.snoozed_until && Date.parse(email.snoozed_until) > Date.now()) return 'snoozed';
 	if (email.archived_at) return 'archive';
 	if (email.direction === 'outbound') return 'sent';
 	return 'inbox';

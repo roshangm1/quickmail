@@ -7,13 +7,14 @@
 		status,
 		detail = null
 	}: {
-		status: DeliveryStatus | null;
+		status: DeliveryStatus | 'scheduled' | null;
 		detail?: string | null;
 	} = $props();
 
 	// Resend reports these over the webhook; before that a message is just queued.
 	const meta = $derived(
 		({
+			scheduled: { label: t('delivery.scheduled'), icon: 'time-line', tone: 'neutral' },
 			queued: { label: t('delivery.queued'), icon: 'time-line', tone: 'neutral' },
 			sent: { label: t('delivery.sent'), icon: 'check-line', tone: 'neutral' },
 			delivered: { label: t('delivery.delivered'), icon: 'check-double-line', tone: 'good' },
@@ -21,7 +22,7 @@
 			bounced: { label: t('delivery.bounced'), icon: 'error-warning-line', tone: 'bad' },
 			complained: { label: t('delivery.complained'), icon: 'spam-2-line', tone: 'warn' },
 			failed: { label: t('delivery.failed'), icon: 'close-circle-line', tone: 'bad' }
-		}) satisfies Record<DeliveryStatus, { label: string; icon: string; tone: string }>
+		}) satisfies Record<DeliveryStatus | 'scheduled', { label: string; icon: string; tone: string }>
 	);
 
 	const info = $derived(status ? meta[status] : null);

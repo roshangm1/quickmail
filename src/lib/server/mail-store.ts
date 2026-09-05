@@ -47,6 +47,7 @@ export async function insertEmail(
 		addressId?: string | null;
 		providerId?: string | null;
 		status?: MailStatus | null;
+		scheduledAt?: string | null;
 		isRead?: boolean;
 		/** Disable fallback grouping when this message must start a conversation. */
 		subjectMatch?: boolean;
@@ -78,8 +79,8 @@ export async function insertEmail(
 				id, user_id, direction, from_addr, from_name, to_addr, cc_addr, bcc_addr, subject,
 				body_text, body_html, message_id, in_reply_to, references_header,
 				reply_to_email_id, thread_id, thread_key,
-				domain_id, address_id, provider_id, status, status_at, is_read
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)`
+				domain_id, address_id, provider_id, status, status_at, scheduled_at, is_read
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)`
 		)
 		.bind(
 			id,
@@ -103,6 +104,7 @@ export async function insertEmail(
 			input.addressId ?? null,
 			input.providerId ?? null,
 			input.status ?? null,
+			input.scheduledAt ?? null,
 			input.isRead ? 1 : 0
 		)
 		.run();
@@ -112,7 +114,7 @@ export async function insertEmail(
 	if (input.direction === 'inbound') {
 		await db
 			.prepare(
-				`UPDATE emails SET archived_at = NULL
+				`UPDATE emails SET archived_at = NULL, snoozed_until = NULL
 				 WHERE user_id = ? AND COALESCE(thread_id, id) = ?`
 			)
 			.bind(input.userId, threadId)
@@ -172,7 +174,11 @@ export async function updateEmailStatusByProviderId(
 function viewFilter(view: MailboxView): string {
 	switch (view) {
 		case 'inbox':
-			return "e.deleted_at IS NULL AND e.archived_at IS NULL AND e.direction = 'inbound'";
+			return `e.deleted_at IS NULL AND e.archived_at IS NULL AND e.direction = 'inbound'
+				AND (e.snoozed_until IS NULL OR datetime(e.snoozed_until) <= datetime('now'))`;
+		case 'snoozed':
+			return `e.deleted_at IS NULL AND e.snoozed_until IS NOT NULL
+				AND datetime(e.snoozed_until) > datetime('now')`;
 		case 'archive':
 			return "e.deleted_at IS NULL AND e.archived_at IS NOT NULL AND (e.status IS NULL OR e.status <> 'draft')";
 		case 'sent':
@@ -233,6 +239,7 @@ type ThreadMessageRow = {
 	is_read: number;
 	is_starred: number;
 	archived_at: string | null;
+	snoozed_until: string | null;
 	has_attachments: number;
 	domain_id: string | null;
 	address_id: string | null;
@@ -306,7 +313,13 @@ export async function listMailbox(
 
 	const { results: rows } = await db
 		.prepare(
-			`SELECT t.thread_id, MAX(datetime(m.created_at)) AS last_at
+			`SELECT t.thread_id, MAX(
+				CASE
+					WHEN m.snoozed_until IS NOT NULL AND datetime(m.snoozed_until) <= datetime('now')
+					THEN datetime(m.snoozed_until)
+					ELSE datetime(m.created_at)
+				END
+			 ) AS last_at
 			 FROM (
 				SELECT DISTINCT COALESCE(e.thread_id, e.id) AS thread_id FROM emails e WHERE ${where}
 			 ) t
@@ -328,7 +341,7 @@ export async function listMailbox(
 	const { results: messages } = await db
 		.prepare(
 			`SELECT m.id, COALESCE(m.thread_id, m.id) AS thread_id, m.direction, m.from_addr, m.from_name, m.to_addr,
-			        m.subject, m.is_read, m.is_starred, m.archived_at, m.created_at, m.domain_id, m.address_id, m.status,
+			        m.subject, m.is_read, m.is_starred, m.archived_at, m.snoozed_until, m.created_at, m.domain_id, m.address_id, m.status,
 			        substr(COALESCE(m.body_text, ''), 1, 4000) AS body_head,
 			        EXISTS(SELECT 1 FROM email_attachments a WHERE a.email_id = m.id) AS has_attachments
 			 FROM emails m
@@ -371,12 +384,25 @@ function toThreadSummary(messages: ThreadMessageRow[]): ThreadSummary {
 		is_starred: messages.some((message) => message.is_starred === 1),
 		is_draft: latest.status === 'draft',
 		is_archived: messages.every((message) => message.archived_at !== null),
+		snoozed_until: latestFutureSnooze(messages),
 		has_attachments: messages.some((message) => message.has_attachments === 1),
 		domain_id: latest.domain_id,
 		address_id: latest.address_id,
 		status: latest.status === 'draft' ? null : latest.status,
 		created_at: latest.created_at
 	};
+}
+
+function latestFutureSnooze(messages: ThreadMessageRow[]): string | null {
+	const now = Date.now();
+	let latest: string | null = null;
+	for (const message of messages) {
+		if (!message.snoozed_until) continue;
+		const at = Date.parse(message.snoozed_until);
+		if (!Number.isFinite(at) || at <= now) continue;
+		if (!latest || at > Date.parse(latest)) latest = message.snoozed_until;
+	}
+	return latest;
 }
 
 /** The newest message's own words — quoted history is dropped. */
@@ -452,13 +478,14 @@ export async function getMailboxCounts(
 	const row = await db
 		.prepare(
 			`SELECT
-				COUNT(DISTINCT CASE WHEN deleted_at IS NULL AND archived_at IS NULL AND direction = 'inbound' THEN ${thread} END) AS inbox,
-				COUNT(DISTINCT CASE WHEN deleted_at IS NULL AND archived_at IS NULL AND direction = 'inbound' AND is_read = 0 THEN ${thread} END) AS inbox_unread,
+				COUNT(DISTINCT CASE WHEN deleted_at IS NULL AND archived_at IS NULL AND direction = 'inbound' AND (snoozed_until IS NULL OR datetime(snoozed_until) <= datetime('now')) THEN ${thread} END) AS inbox,
+				COUNT(DISTINCT CASE WHEN deleted_at IS NULL AND archived_at IS NULL AND direction = 'inbound' AND is_read = 0 AND (snoozed_until IS NULL OR datetime(snoozed_until) <= datetime('now')) THEN ${thread} END) AS inbox_unread,
 				COUNT(DISTINCT CASE WHEN deleted_at IS NULL AND archived_at IS NOT NULL AND (status IS NULL OR status <> 'draft') THEN ${thread} END) AS archive,
 				COUNT(DISTINCT CASE WHEN deleted_at IS NULL AND is_starred = 1 AND (status IS NULL OR status <> 'draft') THEN ${thread} END) AS starred,
 				COUNT(DISTINCT CASE WHEN deleted_at IS NULL AND status = 'draft' THEN ${thread} END) AS drafts,
 				COUNT(DISTINCT CASE WHEN deleted_at IS NULL AND direction = 'outbound' AND (status IS NULL OR status <> 'draft') THEN ${thread} END) AS sent,
-				COUNT(DISTINCT CASE WHEN deleted_at IS NOT NULL THEN ${thread} END) AS trash
+				COUNT(DISTINCT CASE WHEN deleted_at IS NOT NULL THEN ${thread} END) AS trash,
+				COUNT(DISTINCT CASE WHEN deleted_at IS NULL AND snoozed_until IS NOT NULL AND datetime(snoozed_until) > datetime('now') THEN ${thread} END) AS snoozed
 			 FROM emails WHERE ${scope}`
 		)
 		.bind(...bindings)
@@ -471,7 +498,8 @@ export async function getMailboxCounts(
 		starred: row?.starred ?? 0,
 		drafts: row?.drafts ?? 0,
 		sent: row?.sent ?? 0,
-		trash: row?.trash ?? 0
+		trash: row?.trash ?? 0,
+		snoozed: row?.snoozed ?? 0
 	};
 }
 
@@ -559,6 +587,48 @@ export async function setEmailFlags(
 	return result.meta?.changes ?? 0;
 }
 
+/** Hide a conversation until `until`, or wake it now when `until` is in the past / now. */
+export async function setThreadSnooze(
+	db: D1Database,
+	userId: string,
+	ids: string[],
+	until: string
+): Promise<number> {
+	if (ids.length === 0) return 0;
+
+	const placeholders = ids.map(() => '?').join(', ');
+	const result = await db
+		.prepare(
+			`UPDATE emails SET snoozed_until = ?
+			 WHERE user_id = ? AND id IN (${placeholders})`
+		)
+		.bind(until, userId, ...ids)
+		.run();
+
+	return result.meta?.changes ?? 0;
+}
+
+/** Turn a scheduled send back into a draft so it can be edited. */
+export async function unscheduleEmails(
+	db: D1Database,
+	userId: string,
+	ids: string[]
+): Promise<number> {
+	if (ids.length === 0) return 0;
+
+	const placeholders = ids.map(() => '?').join(', ');
+	const result = await db
+		.prepare(
+			`UPDATE emails
+			 SET status = 'draft', scheduled_at = NULL, status_at = datetime('now'), status_detail = NULL
+			 WHERE user_id = ? AND status = 'scheduled' AND id IN (${placeholders})`
+		)
+		.bind(userId, ...ids)
+		.run();
+
+	return result.meta?.changes ?? 0;
+}
+
 /** Irreversible: drops the rows and the R2 objects their attachments point at. */
 export async function deleteEmailsPermanently(
 	db: D1Database,
@@ -614,7 +684,7 @@ export async function markAllRead(
 ): Promise<number> {
 	const bindings: unknown[] = [userId];
 	let scope =
-		"user_id = ? AND direction = 'inbound' AND deleted_at IS NULL AND archived_at IS NULL AND is_read = 0";
+		"user_id = ? AND direction = 'inbound' AND deleted_at IS NULL AND archived_at IS NULL AND is_read = 0 AND (snoozed_until IS NULL OR datetime(snoozed_until) <= datetime('now'))";
 	if (domainId) {
 		scope += ' AND domain_id = ?';
 		bindings.push(domainId);
@@ -795,8 +865,8 @@ export async function listThreadMessages(
 		.prepare(
 			`SELECT e.id, e.direction, e.from_addr, e.from_name, e.to_addr, e.cc_addr, e.subject,
 			        e.body_text, e.body_html, e.message_id, e.references_header,
-			        e.status, e.status_detail, e.is_read, e.is_starred, e.deleted_at,
-			        e.archived_at, e.created_at
+			        e.status, e.status_detail, e.scheduled_at, e.is_read, e.is_starred, e.deleted_at,
+			        e.archived_at, e.snoozed_until, e.created_at
 			 FROM emails e
 			 WHERE e.user_id = ?
 			 AND COALESCE(e.thread_id, e.id) = ?

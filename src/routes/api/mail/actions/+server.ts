@@ -1,11 +1,14 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { authorizeMailAction, isMailAction, type MailAction } from '$lib/server/api-access';
+import { isFuture, parseScheduleAt, toIso } from '$lib/mail/schedule';
 import {
 	deleteEmailsPermanently,
 	emptyTrash,
 	expandToThreads,
 	markAllRead,
 	setEmailFlags,
+	setThreadSnooze,
+	unscheduleEmails,
 	getMailboxCounts
 } from '$lib/server/mail-store';
 
@@ -15,6 +18,7 @@ const WHOLE_MAILBOX: MailAction[] = ['read-all', 'empty-trash'];
 type ActionBody = {
 	action?: MailAction;
 	ids?: string[];
+	until?: string;
 };
 
 export const POST: RequestHandler = async ({ request, locals, platform }) => {
@@ -90,6 +94,20 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 			break;
 		case 'empty-trash':
 			affected = await emptyTrash(db, platform?.env.ATTACHMENTS, locals.user.id);
+			break;
+		case 'snooze': {
+			const until = parseScheduleAt(body.until);
+			if (!until || !isFuture(until)) {
+				return json({ error: 'Pick a time in the future' }, { status: 400 });
+			}
+			affected = await setThreadSnooze(db, locals.user.id, ids, toIso(until));
+			break;
+		}
+		case 'unsnooze':
+			affected = await setThreadSnooze(db, locals.user.id, ids, toIso(new Date()));
+			break;
+		case 'unschedule':
+			affected = await unscheduleEmails(db, locals.user.id, ids);
 			break;
 		default: {
 			const _never: never = action;

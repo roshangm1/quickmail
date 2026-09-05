@@ -8,6 +8,9 @@
 	import { formatMailDate, formatMailTime, shouldShowSeparateTime } from '$lib/utils/date';
 	import { attachmentHref } from '$lib/utils/attachments';
 	import { runMailAction } from '$lib/mail/client';
+	import { postMail } from '$lib/mail/send';
+	import { laterToday, toIso } from '$lib/mail/schedule';
+	import ScheduleMenu from '../overlays/ScheduleMenu.svelte';
 	import { initials, parseAddressList, type AddressPart } from '$lib/mail/folders';
 	import { t } from '$lib/i18n';
 	import type { MailAddress, MailboxView, OutboundAttachmentInput, ThreadMessage } from '$lib/types';
@@ -109,6 +112,12 @@
 
 	const latest = $derived(thread?.messages[thread.messages.length - 1] ?? null);
 	const starred = $derived(thread?.messages.some((message) => message.is_starred) ?? false);
+	const snoozed = $derived(
+		thread?.messages.some(
+			(message) => message.snoozed_until && Date.parse(message.snoozed_until) > Date.now()
+		) ?? false
+	);
+	const scheduled = $derived(thread?.messages.find((message) => message.status === 'scheduled') ?? null);
 	const people = $derived(thread ? threadPeople(thread.messages, selfEmails) : []);
 	const forwarding = $derived(replyMode === 'forward' || replyMode === 'forwardAll');
 	const forwardedMessages = $derived(
@@ -219,10 +228,10 @@
 		return email;
 	}
 
-	async function act(action: string) {
+	async function act(action: string, extra: { until?: string } = {}) {
 		if (!latest) return;
 		menuFor = null;
-		await runMailAction(action, [latest.id]);
+		await runMailAction(action, [latest.id], extra);
 		onClose();
 		await invalidateAll();
 	}
@@ -291,12 +300,17 @@
 		if (event.key === 'r') startReply('reply', latest);
 		if (event.key === 'a') startReply('replyAll', latest);
 		if (event.key === 'f') startReply('forward', latest);
+		if (event.key === 'h') {
+			event.preventDefault();
+			if (snoozed) void act('unsnooze');
+		}
 		if (event.key === 'Escape' && replyOpen) {
 			replyOpen = false;
 		}
 	}
 
-	async function sendReply() {
+	async function sendReply(scheduledAt?: string) {
+		if (sending) return;
 		const message = replyTarget ?? latest;
 		if (!message || (!forwarding && isHtmlEmpty(replyHtml))) return;
 		if (forwarding && !replyTo.trim()) {
@@ -320,7 +334,8 @@
 						bcc: replyBcc.trim() || undefined,
 						html: isHtmlEmpty(replyHtml) ? undefined : replyHtml,
 						text: isHtmlEmpty(replyHtml) ? undefined : htmlToPlainText(replyHtml),
-						includeAttachments: includeOriginalAttachments
+						includeAttachments: includeOriginalAttachments,
+						scheduledAt
 					})
 				});
 				if (!response.ok) {
@@ -329,21 +344,18 @@
 					return;
 				}
 			} else {
-				const response = await fetch(`/api/mail/${message.id}`, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
+				try {
+					await postMail(`/api/mail/${message.id}`, {
 						to: replyTo,
 						cc: replyCc.trim() || undefined,
 						bcc: replyBcc.trim() || undefined,
 						html: replyHtml,
 						text: htmlToPlainText(replyHtml),
-						attachments
-					})
-				});
-				if (!response.ok) {
-					const body = (await response.json()) as { error?: string };
-					sendError = body.error ?? t('thread.couldNotSendReply');
+						attachments,
+						scheduledAt
+					});
+				} catch (err) {
+					sendError = err instanceof Error ? err.message : t('thread.couldNotSendReply');
 					return;
 				}
 			}
@@ -416,6 +428,35 @@
 						<Icon name="Star2" class={starred ? 'z-star-on' : ''} size={16} />
 					</button>
 				</Tooltip>
+				<Tooltip text={snoozed ? t('mailbox.unsnooze') : t('mailbox.snooze')}>
+					{#if snoozed}
+						<button
+							type="button"
+							class="z-thread-icon"
+							aria-label={t('mailbox.unsnooze')}
+							onclick={() => act('unsnooze')}
+						>
+							<Icon name="Clock" size={16} />
+						</button>
+					{:else}
+						<ScheduleMenu
+							title={t('mailbox.snooze')}
+							onPick={(until) => void act('snooze', { until: toIso(until) })}
+						/>
+					{/if}
+				</Tooltip>
+				{#if scheduled}
+					<Tooltip text={t('compose.cancelSend')}>
+						<button
+							type="button"
+							class="z-thread-icon"
+							aria-label={t('compose.cancelSend')}
+							onclick={() => act('unschedule')}
+						>
+							<Icon name="CircleX" size={16} />
+						</button>
+					</Tooltip>
+				{/if}
 				<Tooltip text={view === 'archive' ? t('mailbox.moveToInbox') : t('nav.archive')}>
 					<button
 						type="button"
@@ -459,6 +500,13 @@
 								<button type="button" onclick={() => act('archive')}>
 									<Icon name="Archive2" size={14} />
 									{t('nav.archive')}
+								</button>
+								<button
+									type="button"
+									onclick={() => act('snooze', { until: toIso(laterToday()) })}
+								>
+									<Icon name="Clock" size={14} />
+									{t('mailbox.laterToday')}
 								</button>
 							{/if}
 						</div>
@@ -679,7 +727,16 @@
 						error={sendError}
 						allowNewAttachments={!forwarding}
 						originalAttachmentCount={forwardedAttachmentCount}
-					/>
+					>
+						{#snippet extra()}
+							<ScheduleMenu
+								title={t('compose.sendLater')}
+								label={t('compose.sendLater')}
+								prefer="above"
+								onPick={(until) => void sendReply(toIso(until))}
+							/>
+						{/snippet}
+					</ComposerActions>
 				</form>
 			{/if}
 		</div>

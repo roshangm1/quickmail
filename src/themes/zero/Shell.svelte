@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { disablePushForCurrentAccount } from '$lib/push-client';
 	import { t } from '$lib/i18n';
+	import UndoToast from '$lib/components/UndoToast.svelte';
 	import { withMailboxFilter } from '$lib/mail/folders';
 	import type { ThemeShellProps } from '$lib/ui-theme/types';
 	import Tooltip from '$lib/components/Tooltip.svelte';
@@ -88,6 +89,13 @@
 					label: t('nav.archive'),
 					badge: data.counts.archive || undefined,
 					shortcut: 'g a'
+				},
+				{
+					href: '/snoozed',
+					icon: 'Clock',
+					label: t('nav.snoozed'),
+					badge: data.counts.snoozed || undefined,
+					shortcut: 'g z'
 				},
 				{ href: '/trash', icon: 'Bin', label: t('nav.bin'), badge: data.counts.trash || undefined, shortcut: 'g b' }
 			]
@@ -214,6 +222,7 @@
 				d: '/drafts',
 				t: '/sent',
 				a: '/archive',
+				z: '/snoozed',
 				b: '/trash',
 				s: '/settings/general'
 			};
@@ -374,3 +383,5 @@
 {#if shortcutsOpen}
 	<ShortcutsSheet onClose={() => (shortcutsOpen = false)} />
 {/if}
+
+<UndoToast />

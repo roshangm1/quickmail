@@ -42,6 +42,12 @@
 			label: t('nav.archive'),
 			count: counts.archive
 		},
+		{
+			href: '/inbox?view=snoozed',
+			icon: 'time-line',
+			label: t('nav.snoozed'),
+			count: counts.snoozed
+		},
 		{ href: '/drafts', icon: 'draft-line', label: t('nav.drafts'), count: counts.drafts },
 		{ href: '/sent', icon: 'send-plane-line', label: t('nav.sent') },
 		{ href: '/starred', icon: 'star-line', label: t('nav.starred'), count: counts.starred },
@@ -63,7 +69,9 @@
 		if (pathname === '/inbox') {
 			const expectedView = new URLSearchParams(query).get('view');
 			const currentView = $page.url.searchParams.get('view');
-			return expectedView ? currentView === expectedView : currentView !== 'archive';
+			return expectedView
+				? currentView === expectedView
+				: currentView !== 'archive' && currentView !== 'snoozed';
 		}
 
 		return true;

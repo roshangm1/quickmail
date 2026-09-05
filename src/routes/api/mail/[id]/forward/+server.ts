@@ -29,12 +29,16 @@ export const POST: RequestHandler = async ({ params, request, locals, platform }
 	// A forward goes to someone outside the original exchange, so it starts its
 	// own conversation rather than continuing that one — no In-Reply-To chain.
 	try {
+		const holdUndo =
+			body.holdUndo === true ||
+			(body.holdUndo !== false &&
+				(locals.authMethod === 'session' || locals.authMethod === 'mobile_session'));
 		const { emailId } = await sendForwardedMessages(
 			{ DB: db, ATTACHMENTS: bucket },
 			sendProviderResolver(platform, db),
 			locals.user,
 			[original],
-			body
+			{ ...body, holdUndo }
 		);
 
 		return json({ ok: true, id: emailId });

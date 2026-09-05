@@ -11,6 +11,9 @@
 	import { haptic, isPrimaryTab } from '$lib/app-chrome';
 	import { plural, t } from '$lib/i18n';
 	import { withMailboxFilter } from '$lib/mail/folders';
+	import { toIso } from '$lib/mail/schedule';
+	import { formatFullDate } from '$lib/utils/date';
+	import SnoozeMenu from './SnoozeMenu.svelte';
 	import type {
 		MailAddress,
 		MailboxFilters,
@@ -35,7 +38,8 @@
 		starred: { title: t('nav.starred'), icon: 'star-line', empty: t('mailbox.empty.starred') },
 		drafts: { title: t('nav.drafts'), icon: 'draft-line', empty: t('mailbox.empty.drafts') },
 		sent: { title: t('nav.sent'), icon: 'send-plane-line', empty: t('mailbox.empty.sent') },
-		trash: { title: t('nav.trash'), icon: 'delete-bin-line', empty: t('mailbox.empty.trash') }
+		trash: { title: t('nav.trash'), icon: 'delete-bin-line', empty: t('mailbox.empty.trash') },
+		snoozed: { title: t('nav.snoozed'), icon: 'time-line', empty: t('mailbox.empty.snoozed') }
 	});
 
 	const meta = $derived(META[view]);
@@ -138,7 +142,7 @@
 	}
 
 	/** One entry point for every list action, so the UI always refreshes after. */
-	async function run(action: string, ids: string[] = selected) {
+	async function run(action: string, ids: string[] = selected, extra: { until?: string } = {}) {
 		if (busy) return;
 		actionError = '';
 		busy = true;
@@ -146,7 +150,7 @@
 			const response = await fetch('/api/mail/actions', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ action, ids })
+				body: JSON.stringify({ action, ids, ...extra })
 			});
 			if (!response.ok) {
 				actionError = t('mailbox.updateFailed');
@@ -336,7 +340,17 @@
 					>
 						<Icon name="star-off-line" size={16} />
 					</button>
-					{#if view === 'archive'}
+					{#if view === 'snoozed'}
+						<button
+							type="button"
+							class="tool-btn"
+							title={t('mailbox.unsnooze')}
+							disabled={busy}
+							onclick={() => run('unsnooze')}
+						>
+							<Icon name="inbox-line" size={16} />
+						</button>
+					{:else if view === 'archive'}
 						<button
 							type="button"
 							class="tool-btn"
@@ -347,6 +361,10 @@
 							<Icon name="inbox-line" size={16} />
 						</button>
 					{:else if view !== 'drafts' && view !== 'trash'}
+						<SnoozeMenu
+							compact
+							onPick={(until) => run('snooze', selected, { until: toIso(until) })}
+						/>
 						<button
 							type="button"
 							class="tool-btn"
@@ -737,6 +755,9 @@
 									<span class="count">{thread.message_count}</span>
 								{/if}
 								{#if thread.is_draft}<span class="tag tag-draft">{t('mailbox.draftTag')}</span>{/if}
+								{#if thread.snoozed_until}
+									<span class="tag">{t('mailbox.snoozedUntil', { when: formatFullDate(thread.snoozed_until, $currentPage.data.locale) })}</span>
+								{/if}
 								{#if identity(thread)}
 									<span class="tag">{identity(thread)?.label || identity(thread)?.address}</span>
 								{/if}
@@ -750,7 +771,7 @@
 							</span>
 
 							<span class="indicators">
-								{#if view === 'sent' && thread.status}
+								{#if (view === 'sent' || thread.status === 'scheduled') && thread.status}
 									<DeliveryStatus status={thread.status} />
 								{/if}
 								{#if thread.has_attachments}
@@ -788,7 +809,16 @@
 								>
 									<Icon name={thread.is_read ? 'mail-line' : 'mail-open-line'} size={15} />
 								</button>
-								{#if view === 'archive'}
+								{#if view === 'snoozed'}
+									<button
+										type="button"
+										class="tool-btn"
+										title={t('mailbox.unsnooze')}
+										onclick={() => run('unsnooze', [thread.latest_id])}
+									>
+										<Icon name="inbox-line" size={15} />
+									</button>
+								{:else if view === 'archive'}
 									<button
 										type="button"
 										class="tool-btn"
@@ -798,6 +828,11 @@
 										<Icon name="inbox-line" size={15} />
 									</button>
 								{:else if view !== 'drafts'}
+									<SnoozeMenu
+										compact
+										onPick={(until) =>
+											run('snooze', [thread.latest_id], { until: toIso(until) })}
+									/>
 									<button
 										type="button"
 										class="tool-btn"

@@ -1,9 +1,10 @@
-import type { ExecutionContext } from '@cloudflare/workers-types';
+import type { ExecutionContext, ScheduledController } from '@cloudflare/workers-types';
 import {
 	handleCloudflareInbound,
 	type CloudflareInboundEnv,
 	type CloudflareInboundMessage
 } from './lib/server/cloudflare-inbound';
+import { enqueueFlushDueMail } from './lib/server/schedule';
 // Renamed from `_worker.js` by `scripts/wrap-cloudflare-worker.mjs` after `vite build`.
 // @ts-expect-error file is created at build time
 import sveltekit from '../.svelte-kit/cloudflare/_sveltekit.js';
@@ -37,5 +38,13 @@ export default {
 		};
 
 		await handleCloudflareInbound(message, inboundEnv);
+	},
+
+	scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+		ctx.waitUntil(
+			enqueueFlushDueMail({ env }).catch((error) => {
+				console.warn('Scheduled mail flush failed', error);
+			})
+		);
 	}
 };

@@ -16,6 +16,8 @@ import {
 import { parseEmailAddress } from './email-address';
 import { getEmailSignature } from './email-signature';
 import { stripHtml } from './html';
+import { isFuture, parseScheduleAt, toIso, undoSendAt } from '$lib/mail/schedule';
+import { getUndoSendSeconds } from './undo-send';
 import { insertEmail } from './mail-store';
 import { initialOutboundStatus, type EmailProvider } from './email-provider';
 import { escapeHtml, parseRecipients, sendOutboundEmail } from './send-mail';
@@ -49,6 +51,10 @@ export type ComposeInput = {
 	allowCombinedAttachments?: boolean;
 	/** Disable subject fallback for messages that intentionally start a thread. */
 	subjectMatch?: boolean;
+	/** Explicit send-later time (ISO). */
+	scheduledAt?: string | null;
+	/** Hold in outbox so the composer can undo. Duration is the account setting. */
+	holdUndo?: boolean;
 };
 
 export function assertTotalAttachmentBytes(totalBytes: number): void {
@@ -144,13 +150,21 @@ export async function resolveReplyFromAddress(
 	return getDefaultAddress(db, user.id);
 }
 
+export type SendAndStoreResult = {
+	emailId: string;
+	providerId: string | null;
+	from: MailAddress;
+	scheduledAt?: string;
+	undoUntil?: string;
+};
+
 /** Send through the configured provider, then record it in the Sent folder. */
 export async function sendAndStore(
 	env: { DB: D1Database; ATTACHMENTS: R2Bucket },
 	provider: ProviderResolver,
 	user: User,
 	input: ComposeInput
-): Promise<{ emailId: string; providerId: string; from: MailAddress }> {
+): Promise<SendAndStoreResult> {
 	// resolveFromAddress scopes the lookup to this user, so ownership is implied.
 	const from = input.fromAddress ?? (await resolveFromAddress(env.DB, user, input.fromAddressId));
 	const resolvedProvider = await resolveSendProvider(provider, from);
@@ -171,6 +185,57 @@ export async function sendAndStore(
 
 	const attachments = input.attachments ?? [];
 	assertOutboundAttachments(attachments, input.allowCombinedAttachments);
+
+	const now = new Date();
+	const explicit = parseScheduleAt(input.scheduledAt);
+	if (input.scheduledAt && !explicit) {
+		throw new Error('That send time is not valid');
+	}
+	if (explicit && !isFuture(explicit, now)) {
+		throw new Error('Pick a time in the future');
+	}
+	const undoSeconds = await getUndoSendSeconds(env.DB, user.id);
+	const hold = input.holdUndo && !explicit && undoSeconds > 0 ? undoSendAt(now, undoSeconds) : null;
+	const when = explicit && isFuture(explicit, now) ? explicit : hold;
+
+	if (when) {
+		const scheduledAt = toIso(when);
+		const emailId = await insertEmail(env.DB, {
+			userId: user.id,
+			direction: 'outbound',
+			from: from.address,
+			fromName: from.label?.trim() || user.name,
+			to: parseRecipients(input.to).join(', '),
+			cc: parseRecipients(input.cc).join(', ') || null,
+			bcc: parseRecipients(input.bcc).join(', ') || null,
+			subject: input.subject.trim(),
+			bodyText: text,
+			bodyHtml: html ?? escapeHtml(text).replaceAll('\n', '<br>\n'),
+			inReplyTo: input.inReplyTo ?? null,
+			references: input.references ?? null,
+			replyToEmailId: input.replyToEmailId ?? null,
+			domainId: from.domain_id,
+			addressId: from.id,
+			status: 'scheduled',
+			scheduledAt,
+			isRead: true,
+			subjectMatch: input.subjectMatch
+		});
+
+		if (attachments.length > 0) {
+			await insertAttachments(env.DB, env.ATTACHMENTS, emailId, attachments, {
+				enforceCountLimit: !input.allowCombinedAttachments
+			});
+		}
+
+		return {
+			emailId,
+			providerId: null,
+			from,
+			scheduledAt,
+			undoUntil: hold ? scheduledAt : undefined
+		};
+	}
 
 	const { providerId } = await sendOutboundEmail(resolvedProvider, {
 		from,

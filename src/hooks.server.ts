@@ -10,6 +10,7 @@ import { DOMAIN_COOKIE, UI_THEME_COOKIE, UI_THEME_COOKIE_MAX_AGE } from '$lib/se
 import { listAddressesForUser, listDomains } from '$lib/server/domains';
 import { getUserLocale } from '$lib/server/locale';
 import { getUserUiTheme } from '$lib/server/ui-theme';
+import { enqueueFlushDueMail } from '$lib/server/schedule';
 import { BUILTIN_THEME_IDS, DEFAULT_UI_THEME, parseThemeId } from '$lib/ui-theme/ids';
 import {
 	DEFAULT_LOCALE,
@@ -83,6 +84,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.locale =
 		matchLocale(event.cookies.get(LOCALE_COOKIE)) ??
 		localeFromAcceptLanguage(event.request.headers.get('accept-language'));
+
+	const platform = event.platform;
+	if (platform?.env.DB && !pathname.startsWith('/_app') && !pathname.startsWith('/themes')) {
+		const flush = enqueueFlushDueMail(platform).catch((error) => {
+			console.warn('Could not flush scheduled mail', error);
+		});
+		if (platform.ctx?.waitUntil) platform.ctx.waitUntil(flush);
+		else await flush;
+	}
 
 	if (db) {
 		// Browser sessions take precedence so an incidental or stale Authorization
