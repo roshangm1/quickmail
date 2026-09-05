@@ -43,8 +43,10 @@ export type Domain = {
 	catchall_user_id: string | null;
 	created_at: string;
 	synced_at: string | null;
-	/** Which backend this hostname is connected through. */
+	/** Which backend this hostname is connected through for sending. */
 	provider_kind: EmailProviderKind;
+	/** Where inbound mail is accepted. Resend domains may use Cloudflare. */
+	receive_via: EmailProviderKind;
 };
 
 /** A domain as reported by a configured provider, flagged with local connection state. */

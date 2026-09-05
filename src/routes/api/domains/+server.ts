@@ -10,6 +10,7 @@ import {
 	ProviderError,
 	providerLoadError
 } from '$lib/server/context';
+import { parseReceiveViaInput } from '$lib/server/email-provider';
 import { listDomains, syncDomains, upsertDomain } from '$lib/server/domains';
 
 /**
@@ -85,8 +86,13 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 		return json({ error: 'Forbidden' }, { status: 403 });
 	}
 
-	const body = (await request.json()) as { domainIds?: string[]; domainId?: string };
+	const body = (await request.json()) as {
+		domainIds?: string[];
+		domainId?: string;
+		receiveVia?: unknown;
+	};
 	const ids = body.domainIds ?? (body.domainId ? [body.domainId] : []);
+	const receiveVia = parseReceiveViaInput(body.receiveVia);
 
 	if (ids.length === 0) {
 		return json({ error: 'Select at least one domain' }, { status: 400 });
@@ -96,7 +102,9 @@ export const POST: RequestHandler = async ({ request, locals, platform }) => {
 		const connected = [];
 
 		for (const id of ids) {
-			connected.push(await upsertDomain(db, await findProviderDomain(platform, id)));
+			connected.push(
+				await upsertDomain(db, await findProviderDomain(platform, id), { receiveVia })
+			);
 		}
 
 		return json({ connected, domains: await listDomains(db) }, { status: 201 });

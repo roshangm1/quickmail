@@ -3,7 +3,7 @@ import type { DeliveryStatus } from '$lib/types';
 import { insertAttachmentBytes } from './attachments';
 import { MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS_PER_EMAIL, MAX_BODY_BYTES } from './constants';
 import { collectInboundRecipients, parseEmailIdentity } from './email-address';
-import { recordUnroutedEmail, resolveInboundRoute } from './domains';
+import { recordUnroutedEmail, recipientsReceiveViaCloudflare, resolveInboundRoute } from './domains';
 import { emailExistsByProviderId, insertEmail, updateEmailStatusByProviderId } from './mail-store';
 import { scheduleNewMailNotification, type PushNotificationEnv } from './push-notifications';
 import type { ResendClient } from './resend';
@@ -82,6 +82,16 @@ async function handleInboundEmail(
 		return { handled: true, note: `Already stored ${providerId}` };
 	}
 
+	const previewRecipients = collectInboundRecipients({
+		received_for: event.data?.received_for as string[] | undefined,
+		to: asStringList(event.data?.to),
+		cc: asStringList(event.data?.cc),
+		bcc: asStringList(event.data?.bcc)
+	});
+	if (await recipientsReceiveViaCloudflare(env.DB, previewRecipients)) {
+		return { handled: true, note: 'Inbound is handled by Cloudflare Email Routing' };
+	}
+
 	// Webhooks carry metadata only — the body and attachments come from the API.
 	let received = await client.getReceivedEmail(providerId, 'data_uri');
 
@@ -102,6 +112,10 @@ async function handleInboundEmail(
 	const from = sender.address;
 	const subject = received.subject?.trim() || '(no subject)';
 	const route = await resolveInboundRoute(env.DB, recipients);
+
+	if (await recipientsReceiveViaCloudflare(env.DB, recipients)) {
+		return { handled: true, note: 'Inbound is handled by Cloudflare Email Routing' };
+	}
 
 	if (!route) {
 		await recordUnroutedEmail(env.DB, {
@@ -202,4 +216,9 @@ export async function claimWebhookEvent(
 
 function readString(value: unknown): string | null {
 	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function asStringList(value: unknown): string[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	return value.filter((item): item is string => typeof item === 'string');
 }

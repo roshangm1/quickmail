@@ -1,6 +1,14 @@
+import type { D1Database } from '@cloudflare/workers-types';
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { findProviderDomain, ProviderError } from '$lib/server/context';
-import { disconnectDomain, getDomain, setCatchallUser, upsertDomain } from '$lib/server/domains';
+import { parseReceiveViaInput } from '$lib/server/email-provider';
+import {
+	disconnectDomain,
+	getDomain,
+	setCatchallUser,
+	setDomainReceiveVia,
+	upsertDomain
+} from '$lib/server/domains';
 
 /** PATCH — set the catch-all owner or re-sync status from the active provider. */
 export const PATCH: RequestHandler = async ({ params, request, locals, platform }) => {
@@ -17,6 +25,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals, platform 
 	const body = (await request.json()) as {
 		catchallUserId?: string | null;
 		refresh?: boolean;
+		receiveVia?: unknown;
 	};
 
 	if (body.refresh) {
@@ -29,6 +38,10 @@ export const PATCH: RequestHandler = async ({ params, request, locals, platform 
 				{ status: 502 }
 			);
 		}
+	}
+
+	if (body.receiveVia !== undefined) {
+		return patchReceiveVia(platform, db, domain.id, body.receiveVia);
 	}
 
 	if (body.catchallUserId !== undefined) {
@@ -48,3 +61,33 @@ export const DELETE: RequestHandler = async ({ params, locals, platform }) => {
 	await disconnectDomain(db, params.id!);
 	return json({ ok: true });
 };
+
+async function patchReceiveVia(
+	platform: App.Platform | undefined,
+	db: D1Database,
+	domainId: string,
+	value: unknown
+) {
+	const receiveVia = parseReceiveViaInput(value);
+	if (!receiveVia) {
+		return json({ error: 'receiveVia must be resend or cloudflare' }, { status: 400 });
+	}
+
+	try {
+		await setDomainReceiveVia(db, domainId, receiveVia);
+	} catch (error) {
+		return json(
+			{
+				error: error instanceof ProviderError ? error.message : 'Failed to update inbound provider'
+			},
+			{ status: error instanceof ProviderError ? error.status : 400 }
+		);
+	}
+
+	try {
+		const remote = await findProviderDomain(platform, domainId);
+		return json({ domain: await upsertDomain(db, remote, { receiveVia }) });
+	} catch {
+		return json({ domain: await getDomain(db, domainId) });
+	}
+}

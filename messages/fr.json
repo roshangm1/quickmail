@@ -181,7 +181,8 @@
 		},
 		"receivingHint": {
 			"resend": "La réception n’est pas encore activée sur {domain} — vous pouvez envoyer, mais le courrier entrant n’arrivera pas tant que vous n’aurez pas ajouté l’enregistrement MX dans Resend.",
-			"cloudflare": "La réception n’est pas encore activée sur {domain} — pointez le catch-all d’Email Routing vers ce Worker."
+			"cloudflare": "La réception n’est pas encore activée sur {domain} — pointez le catch-all d’Email Routing vers ce Worker.",
+			"resendViaCloudflare": "La réception sur {domain} utilisera Cloudflare Email Routing. Pointez le MX apex et le catch-all vers ce Worker. L’envoi passe toujours par Resend — n’ajoutez pas le MX Resend."
 		}
 	},
 	"mailbox": {
@@ -363,6 +364,7 @@
 		"couldNotSaveMailboxSignature": "Impossible d’enregistrer cette signature",
 		"couldNotRemoveAddress": "Impossible de retirer cette adresse",
 		"connectedDomains": "Domaines connectés",
+		"inboxViaCloudflare": "boîte Cloudflare",
 		"send": "envoi",
 		"receive": "réception",
 		"apiKeys": "Clés API",
@@ -451,7 +453,10 @@
 	},
 	"admin": {
 		"title": "Admin — {app}",
-		"domainsHint": "Le catch-all reçoit le courrier sans destinataire correspondant. Chaque domaine utilise un fournisseur — Resend et Cloudflare Email peuvent tous deux être connectés sur cette instance.",
+		"domainsHint": "Le catch-all reçoit le courrier sans destinataire correspondant. Chaque domaine envoie via un fournisseur. Les domaines Resend peuvent recevoir via Cloudflare Email Routing.",
+		"receiveViaCloudflare": "Recevoir via Cloudflare",
+		"receiveViaCloudflareHint": "La réception utilise Cloudflare Email Routing. Pointez le MX apex et le catch-all vers ce Worker. N’ajoutez pas le MX Resend — l’envoi passe toujours par Resend.",
+		"inboxViaCloudflare": "boîte via Cloudflare",
 		"addressCount": "{count} adresse",
 		"addressCountPlural": "{count} adresses",
 		"catchall": "Catch-all",
@@ -498,7 +503,9 @@
 		"domain": "Domaine",
 		"send": "Envoi",
 		"receive": "Réception",
-		"receivingOffSelected": "La réception est désactivée pour un domaine sélectionné. Activez l’entrée chez le fournisseur pour recevoir du courrier — l’envoi fonctionne toujours."
+		"receivingOffSelected": "La réception est désactivée pour un domaine sélectionné. Activez l’entrée chez le fournisseur pour recevoir du courrier — l’envoi fonctionne toujours.",
+		"receiveViaCloudflare": "Recevoir via Cloudflare plutôt que Resend",
+		"receiveViaCloudflareHint": "Pointez le MX de ce domaine vers Cloudflare Email Routing. L’envoi reste sur Resend."
 	},
 	"wizard": {
 		"progress": "Progression de la configuration"

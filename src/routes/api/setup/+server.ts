@@ -15,6 +15,7 @@ import {
 	hasProviderConfigured,
 	ProviderError
 } from '$lib/server/context';
+import { parseReceiveViaInput } from '$lib/server/email-provider';
 import { createAddress, setCatchallUser, upsertDomain } from '$lib/server/domains';
 
 export const GET: RequestHandler = async ({ platform }) => {
@@ -57,6 +58,7 @@ export const POST: RequestHandler = async ({ request, cookies, platform, url }) 
 		localPart?: string;
 		name?: string;
 		password?: string;
+		receiveVia?: unknown;
 	};
 
 	if (!body.domainId) {
@@ -73,7 +75,9 @@ export const POST: RequestHandler = async ({ request, cookies, platform, url }) 
 	}
 
 	try {
-		const domain = await upsertDomain(db, await findProviderDomain(platform, body.domainId));
+		const domain = await upsertDomain(db, await findProviderDomain(platform, body.domainId), {
+			receiveVia: parseReceiveViaInput(body.receiveVia)
+		});
 
 		const localPart = body.localPart.trim().toLowerCase().replace(/@.*$/, '');
 		const address = `${localPart}@${domain.name}`;

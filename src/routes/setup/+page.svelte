@@ -3,6 +3,7 @@
 	import WizardShell from '$lib/components/WizardShell.svelte';
 	import DomainPicker from '$lib/components/DomainPicker.svelte';
 	import AddressField from '$lib/components/AddressField.svelte';
+	import Check from '$lib/components/Check.svelte';
 	import {
 		domainPickerSubtitle,
 		missingProviderHint,
@@ -27,6 +28,7 @@
 	let confirm = $state('');
 	let error = $state('');
 	let submitting = $state(false);
+	let receiveViaCloudflare = $state(false);
 
 	const chosen = $derived(data.available.find((domain) => domain.id === selected[0]) ?? null);
 	const cleanLocal = $derived(localPart.trim().toLowerCase().replace(/@.*$/, ''));
@@ -64,7 +66,9 @@
 					domainId: chosen?.id,
 					localPart: cleanLocal || suggestion,
 					name,
-					password
+					password,
+					receiveVia:
+						chosen?.provider_kind === 'resend' && receiveViaCloudflare ? 'cloudflare' : undefined
 				})
 			});
 			const body = await res.json();
@@ -126,7 +130,24 @@
 				</div>
 			</div>
 		{:else}
-			<DomainPicker domains={data.available} bind:selected multi={false} />
+			<DomainPicker
+				domains={data.available}
+				bind:selected
+				multi={false}
+				suppressReceiveWarning={receiveViaCloudflare && chosen?.provider_kind === 'resend'}
+			/>
+
+			{#if chosen?.provider_kind === 'resend'}
+				<div class="receive-option">
+					<Check
+						label={t('domains.receiveViaCloudflare')}
+						caption={t('domains.receiveViaCloudflare')}
+						checked={receiveViaCloudflare}
+						onchange={(next) => (receiveViaCloudflare = next)}
+					/>
+					<p class="hint">{t('domains.receiveViaCloudflareHint')}</p>
+				</div>
+			{/if}
 
 			{#if error}<p class="error">{error}</p>{/if}
 
@@ -184,7 +205,12 @@
 				class="text-input"
 			/>
 
-			{#if chosen && !chosen.can_receive}
+			{#if chosen && receiveViaCloudflare && chosen.provider_kind === 'resend'}
+				<p class="hint">
+					<Icon name="information-line" size={14} />
+					{receivingHint(chosen.provider_kind, chosen.name, undefined, 'cloudflare')}
+				</p>
+			{:else if chosen && !chosen.can_receive}
 				<p class="hint">
 					<Icon name="information-line" size={14} />
 					{receivingHint(chosen.provider_kind, chosen.name)}
@@ -276,6 +302,14 @@
 		color: var(--color-text);
 		background: var(--color-surface-muted);
 		overflow-x: auto;
+	}
+
+	.receive-option {
+		margin-top: 1rem;
+	}
+
+	.receive-option .hint {
+		margin-top: 0.5rem;
 	}
 
 	.hint {

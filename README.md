@@ -43,11 +43,14 @@ If you already deployed from this repo, pulling updates only changes the product
 
 ## Choosing a mail provider
 
-Both backends can run on the **same Worker**. Each connected domain uses exactly
-one of them — do not point the same hostname's apex MX at both.
+Both backends can run on the **same Worker**. Each connected domain sends
+through exactly one of them. A Resend domain can optionally receive through
+Cloudflare Email Routing instead of Resend — do not point the same hostname's
+apex MX at both.
 
 Configure whichever backends you need. A domain you connect in the dashboard is
-stored with that backend and used for send, sync, and inbound.
+stored with that backend for sending. Inbound follows the domain's receive
+setting (Resend webhook, or the Worker `email()` handler).
 
 |                 | [Resend](https://resend.com)             | [Cloudflare Email Service](https://developers.cloudflare.com/email-service/) |
 | --------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |
@@ -97,9 +100,17 @@ different backends on this same deploy.
 
 ### Track A — Resend
 
-1. **Verify the domain** in Resend (**Domains → Add Domain**) and add every
-   record they show, including the apex `MX` — without it, mail never arrives.
-   Enable **sending and receiving** on the domain.
+1. **Verify the domain** in Resend (**Domains → Add Domain**) and add the
+   sending records they show (SPF, DKIM). Enable **sending**.
+
+   For inbound, either:
+
+   - **Resend inbox (default):** also add Resend's apex `MX` and enable
+     receiving on the domain, then create the webhook below.
+   - **Cloudflare inbox:** skip Resend's MX. Onboard the zone for
+     [Email Routing](https://dash.cloudflare.com/?to=/:account/email-service/routing),
+     point the catch-all at this Worker, and in Admin turn on
+     **Receive via Cloudflare**. Sending still uses Resend.
 
 2. **Set the API key** (create it with full access — send + domains + receiving):
 
@@ -116,7 +127,9 @@ different backends on this same deploy.
    In [Resend → Webhooks](https://resend.com/webhooks) add a webhook pointing to
    `https://<your-worker-url>/api/webhooks/resend` with the events
    `email.received`, `email.sent`, `email.delivered`, `email.bounced`,
-   `email.complained`, `email.delivery_delayed`, `email.failed`.
+   `email.complained`, `email.delivery_delayed`, `email.failed`. If inbound
+   uses Cloudflare, you can omit `email.received` — delivery events still
+   update Sent-folder status.
 
 4. **Save the signing secret** (shown once) and redeploy:
 
@@ -317,8 +330,9 @@ migrations/          D1 schema, applied in order
 | Symptom | Fix |
 | --- | --- |
 | `wrangler email sending enable` → 404 | Wrangler too old — upgrade to 4.123+ |
-| Mail never arrives (Resend) | `dig MX yourdomain.com` must point at Resend; enable receiving on the domain |
-| Mail never arrives (Cloudflare) | Apex MX must be Cloudflare Routing, catch-all must target this Worker, `CLOUDFLARE_MAIL_DOMAINS` includes the hostname, Worker must be deployed |
+| Mail never arrives (Resend inbox) | `dig MX yourdomain.com` must point at Resend; enable receiving on the domain |
+| Mail never arrives (Cloudflare inbox) | Apex MX must be Cloudflare Routing, catch-all must target this Worker, Worker must be deployed. Resend domains also need **Receive via Cloudflare** in Admin |
+| Mail never arrives (Cloudflare send+receive) | Same MX/Routing setup, and `CLOUDFLARE_MAIL_DOMAINS` includes the hostname |
 | Webhook 401 | `RESEND_WEBHOOK_SECRET` mismatch — secrets are shown once; recreate the webhook |
 | Webhook 500 | `bunx wrangler tail` |
 | Attachments missing | R2 bucket must exist and match `bucket_name` in `wrangler.jsonc` |

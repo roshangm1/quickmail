@@ -7,12 +7,15 @@
 	let {
 		domains,
 		selected = $bindable([]),
-		multi = true
+		multi = true,
+		suppressReceiveWarning = false
 	}: {
 		domains: AvailableDomain[];
 		selected: string[];
 		/** Single-select for first-run, multi-select when adding more later. */
 		multi?: boolean;
+		/** Hide the Resend MX warning when inbound will use Cloudflare instead. */
+		suppressReceiveWarning?: boolean;
 	} = $props();
 
 	function toggle(id: string) {
@@ -64,7 +67,7 @@
 	{/each}
 </ul>
 
-{#if selected.some((id) => domains.find((d) => d.id === id && !d.can_receive))}
+{#if !suppressReceiveWarning && selected.some((id) => domains.find((d) => d.id === id && !d.can_receive))}
 	<p class="hint">
 		<Icon name="information-line" size={14} />
 		{t('domains.receivingOffSelected')}

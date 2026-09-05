@@ -34,6 +34,7 @@
 
 	let connecting = $state<string | null>(null);
 	let domainError = $state('');
+	let receiveViaCloudflare = $state<Record<string, boolean>>({});
 
 	const connectable = $derived(data.available.filter((domain) => !domain.connected));
 
@@ -141,7 +142,7 @@
 		}
 	}
 
-	async function connect(domainId: string) {
+	async function connect(domainId: string, providerKind: string) {
 		connecting = domainId;
 		domainError = '';
 
@@ -149,7 +150,11 @@
 			const res = await fetch('/api/domains', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ domainId })
+				body: JSON.stringify({
+					domainId,
+					receiveVia:
+						providerKind === 'resend' && receiveViaCloudflare[domainId] ? 'cloudflare' : undefined
+				})
 			});
 			const body = await res.json();
 			if (!res.ok) {
@@ -215,6 +220,9 @@
 							<p class="domain-name">{domain.name}</p>
 							<p class="domain-sub">
 								{providerName(domain.provider_kind)}
+								{#if domain.provider_kind === 'resend' && domain.receive_via === 'cloudflare'}
+									· {t('admin.inboxViaCloudflare')}
+								{/if}
 								· {plural($page.data.locale, 'admin.addressCount', 'admin.addressCountPlural', addressesFor(domain.id).length)}
 								{#if domain.region}· {domain.region}{/if}
 							</p>
@@ -225,6 +233,18 @@
 							<span class="chip" class:chip-ok={domain.status === 'verified'}>{domain.status}</span>
 						</div>
 					</div>
+
+					{#if domain.provider_kind === 'resend'}
+						<div class="receive-toggle">
+							<Check
+								label={t('admin.receiveViaCloudflare')}
+								caption={t('admin.receiveViaCloudflare')}
+								checked={domain.receive_via === 'cloudflare'}
+								onchange={(next) =>
+									updateDomain(domain.id, { receiveVia: next ? 'cloudflare' : 'resend' })}
+							/>
+						</div>
+					{/if}
 
 					<div class="domain-controls">
 						<label class="control">
@@ -261,10 +281,15 @@
 						</div>
 					</div>
 
-					{#if !domain.receiving_enabled}
+					{#if domain.provider_kind === 'resend' && domain.receive_via === 'cloudflare'}
 						<p class="hint">
 							<Icon name="information-line" size={13} />
-							{domain.provider_kind === 'cloudflare'
+							{t('admin.receiveViaCloudflareHint')}
+						</p>
+					{:else if !domain.receiving_enabled}
+						<p class="hint">
+							<Icon name="information-line" size={13} />
+							{domain.receive_via === 'cloudflare'
 								? t('admin.inboundOffRouting')
 								: t('admin.inboundOffMx')}
 						</p>
@@ -290,12 +315,24 @@
 							<div class="min-w-0">
 								<p class="domain-name">{domain.name}</p>
 								<p class="domain-sub">{providerName(domain.provider_kind)} · {domain.status}{#if domain.region} · {domain.region}{/if}</p>
+								{#if domain.provider_kind === 'resend'}
+									<div class="connect-receive">
+										<Check
+											label={t('admin.receiveViaCloudflare')}
+											caption={t('admin.receiveViaCloudflare')}
+											checked={Boolean(receiveViaCloudflare[domain.id])}
+											onchange={(next) => {
+												receiveViaCloudflare = { ...receiveViaCloudflare, [domain.id]: next };
+											}}
+										/>
+									</div>
+								{/if}
 							</div>
 							<button
 								type="button"
 								class="btn-primary text-xs"
 								disabled={connecting === domain.id}
-								onclick={() => connect(domain.id)}
+								onclick={() => connect(domain.id, domain.provider_kind)}
 							>
 								{connecting === domain.id ? t('common.connecting') : t('common.connect')}
 							</button>
@@ -562,6 +599,10 @@
 		background: var(--tone-good-bg);
 	}
 
+	.receive-toggle {
+		margin-top: 0.75rem;
+	}
+
 	.domain-controls {
 		display: flex;
 		align-items: flex-end;
@@ -632,6 +673,10 @@
 		justify-content: space-between;
 		gap: 0.75rem;
 		padding: 0.5rem 0;
+	}
+
+	.connect-receive {
+		margin-top: 0.5rem;
 	}
 
 	.admin-input {

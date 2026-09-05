@@ -181,7 +181,8 @@
 		},
 		"receivingHint": {
 			"resend": "{domain} 尚未启用接收 — 你可以发信，但在 Resend 中添加 MX 记录之前收不到来信。",
-			"cloudflare": "{domain} 尚未启用接收 — 请将 Email Routing 的 catch-all 指向此 Worker。"
+			"cloudflare": "{domain} 尚未启用接收 — 请将 Email Routing 的 catch-all 指向此 Worker。",
+			"resendViaCloudflare": "{domain} 的收信将走 Cloudflare Email Routing。请将 apex MX 和 catch-all 指向此 Worker。发信仍走 Resend — 不要添加 Resend 的 MX。"
 		}
 	},
 	"mailbox": {
@@ -363,6 +364,7 @@
 		"couldNotSaveMailboxSignature": "无法保存该签名",
 		"couldNotRemoveAddress": "无法移除该地址",
 		"connectedDomains": "已连接的域名",
+		"inboxViaCloudflare": "Cloudflare 收件箱",
 		"send": "发送",
 		"receive": "接收",
 		"apiKeys": "API 密钥",
@@ -451,7 +453,10 @@
 	},
 	"admin": {
 		"title": "管理 — {app}",
-		"domainsHint": "Catch-all 会接收无法匹配的邮件。每个域名只用一个服务商 — 同一实例可以同时连接 Resend 和 Cloudflare Email。",
+		"domainsHint": "Catch-all 会接收无法匹配的邮件。每个域名通过一个服务商发信。Resend 域名可以选择用 Cloudflare Email Routing 收信。",
+		"receiveViaCloudflare": "通过 Cloudflare 收信",
+		"receiveViaCloudflareHint": "收信使用 Cloudflare Email Routing。请将 apex MX 和 catch-all 指向此 Worker。不要添加 Resend 的 MX — 发信仍走 Resend。",
+		"inboxViaCloudflare": "Cloudflare 收件箱",
 		"addressCount": "{count} 个地址",
 		"addressCountPlural": "{count} 个地址",
 		"catchall": "Catch-all",
@@ -498,7 +503,9 @@
 		"domain": "域名",
 		"send": "发送",
 		"receive": "接收",
-		"receivingOffSelected": "所选域名未开启接收。请在邮件服务商处启用入站以收信 — 发送仍然可用。"
+		"receivingOffSelected": "所选域名未开启接收。请在邮件服务商处启用入站以收信 — 发送仍然可用。",
+		"receiveViaCloudflare": "用 Cloudflare 收信，而不是 Resend",
+		"receiveViaCloudflareHint": "将此域名的 MX 指向 Cloudflare Email Routing。发信仍走 Resend。"
 	},
 	"wizard": {
 		"progress": "设置进度"

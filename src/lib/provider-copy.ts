@@ -128,8 +128,12 @@ export function onboardingSubtitle(kind: ProviderRef, locale: string = DEFAULT_L
 export function receivingHint(
 	kind: EmailProviderKind,
 	domainName: string,
-	locale: string = DEFAULT_LOCALE
+	locale: string = DEFAULT_LOCALE,
+	receiveVia?: EmailProviderKind
 ): string {
+	if (kind === 'resend' && receiveVia === 'cloudflare') {
+		return translate(locale, 'provider.receivingHint.resendViaCloudflare', { domain: domainName });
+	}
 	switch (kind) {
 		case 'resend':
 			return translate(locale, 'provider.receivingHint.resend', { domain: domainName });

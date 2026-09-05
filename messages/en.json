@@ -181,7 +181,8 @@
 		},
 		"receivingHint": {
 			"resend": "Receiving isn't enabled on {domain} yet — you can send, but inbound mail won't arrive until you add the MX record in Resend.",
-			"cloudflare": "Receiving isn't enabled on {domain} yet — point Email Routing's catch-all at this Worker."
+			"cloudflare": "Receiving isn't enabled on {domain} yet — point Email Routing's catch-all at this Worker.",
+			"resendViaCloudflare": "Inbound on {domain} will use Cloudflare Email Routing. Point the apex MX and catch-all at this Worker. Sending still goes through Resend — leave Resend's MX off."
 		}
 	},
 	"mailbox": {
@@ -363,6 +364,7 @@
 		"couldNotSaveMailboxSignature": "Could not save that signature",
 		"couldNotRemoveAddress": "Could not remove that address",
 		"connectedDomains": "Connected domains",
+		"inboxViaCloudflare": "Cloudflare inbox",
 		"send": "send",
 		"receive": "receive",
 		"apiKeys": "API keys",
@@ -451,7 +453,10 @@
 	},
 	"admin": {
 		"title": "Admin — {app}",
-		"domainsHint": "Catch-all gets unmatched mail. Each domain uses one provider — Resend and Cloudflare Email can both be connected on this instance.",
+		"domainsHint": "Catch-all gets unmatched mail. Each domain sends through one provider. Resend domains can receive via Cloudflare Email Routing instead of Resend.",
+		"receiveViaCloudflare": "Receive via Cloudflare",
+		"receiveViaCloudflareHint": "Inbound uses Cloudflare Email Routing. Point the apex MX and catch-all at this Worker. Leave Resend’s MX off — sending still goes through Resend.",
+		"inboxViaCloudflare": "inbox via Cloudflare",
 		"addressCount": "{count} address",
 		"addressCountPlural": "{count} addresses",
 		"catchall": "Catch-all",
@@ -498,7 +503,9 @@
 		"domain": "Domain",
 		"send": "Send",
 		"receive": "Receive",
-		"receivingOffSelected": "Receiving is off for a selected domain. Enable inbound on it at the mail provider to get mail — sending still works."
+		"receivingOffSelected": "Receiving is off for a selected domain. Enable inbound on it at the mail provider to get mail — sending still works.",
+		"receiveViaCloudflare": "Receive via Cloudflare instead of Resend",
+		"receiveViaCloudflareHint": "Point this domain’s MX at Cloudflare Email Routing. Sending stays on Resend."
 	},
 	"wizard": {
 		"progress": "Setup progress"

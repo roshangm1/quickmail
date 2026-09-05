@@ -3,6 +3,7 @@
 	import WizardShell from '$lib/components/WizardShell.svelte';
 	import DomainPicker from '$lib/components/DomainPicker.svelte';
 	import AddressField from '$lib/components/AddressField.svelte';
+	import Check from '$lib/components/Check.svelte';
 	import {
 		missingProviderTitle,
 		noDomainsBody,
@@ -24,6 +25,7 @@
 
 	let localPart = $state('');
 	let addressDomainId = $state('');
+	let receiveViaCloudflare = $state(false);
 
 	// Seed the picker with the first connected domain once data is available.
 	$effect(() => {
@@ -37,6 +39,9 @@
 	const connectable = $derived(data.available.filter((domain) => !domain.connected));
 	const cleanLocal = $derived(localPart.trim().toLowerCase().replace(/@.*$/, ''));
 	const activeDomain = $derived(data.domains.find((domain) => domain.id === addressDomainId));
+	const selectedResend = $derived(
+		connectable.some((domain) => selected.includes(domain.id) && domain.provider_kind === 'resend')
+	);
 
 	async function connectDomains() {
 		if (selected.length === 0) {
@@ -51,7 +56,10 @@
 			const res = await fetch('/api/domains', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ domainIds: selected })
+				body: JSON.stringify({
+					domainIds: selected,
+					receiveVia: receiveViaCloudflare && selectedResend ? 'cloudflare' : undefined
+				})
 			});
 			const body = await res.json();
 			if (!res.ok) {
@@ -134,7 +142,23 @@
 				</div>
 			</div>
 		{:else}
-			<DomainPicker domains={connectable} bind:selected />
+			<DomainPicker
+				domains={connectable}
+				bind:selected
+				suppressReceiveWarning={receiveViaCloudflare && selectedResend}
+			/>
+
+			{#if selectedResend}
+				<div class="receive-option">
+					<Check
+						label={t('domains.receiveViaCloudflare')}
+						caption={t('domains.receiveViaCloudflare')}
+						checked={receiveViaCloudflare}
+						onchange={(next) => (receiveViaCloudflare = next)}
+					/>
+					<p class="hint">{t('domains.receiveViaCloudflareHint')}</p>
+				</div>
+			{/if}
 
 			{#if error}<p class="error">{error}</p>{/if}
 
@@ -166,7 +190,12 @@
 				</p>
 			{/if}
 
-			{#if activeDomain && !activeDomain.receiving_enabled}
+			{#if activeDomain && activeDomain.receive_via === 'cloudflare' && activeDomain.provider_kind === 'resend'}
+				<p class="hint">
+					<Icon name="information-line" size={14} />
+					{t('domains.receiveViaCloudflareHint')}
+				</p>
+			{:else if activeDomain && !activeDomain.receiving_enabled}
 				<p class="hint">
 					<Icon name="information-line" size={14} />
 					{t('onboarding.receivingOff', { domain: activeDomain.name })}
@@ -224,6 +253,14 @@
 		margin-top: 0.25rem;
 		font-size: 0.8125rem;
 		line-height: 1.5;
+	}
+
+	.receive-option {
+		margin-top: 1rem;
+	}
+
+	.receive-option .hint {
+		margin-top: 0.5rem;
 	}
 
 	.hint {

@@ -58,6 +58,27 @@ export function parseEmailProviderKind(value: string | undefined | null): EmailP
 	return null;
 }
 
+/** Cloudflare-native domains always receive locally; Resend may opt into that. */
+export function resolveReceiveVia(
+	providerKind: EmailProviderKind,
+	receiveVia?: string | null
+): EmailProviderKind {
+	if (providerKind === 'cloudflare') return 'cloudflare';
+	return receiveVia === 'cloudflare' ? 'cloudflare' : 'resend';
+}
+
+export function parseReceiveViaInput(value: unknown): EmailProviderKind | null {
+	if (value === 'resend' || value === 'cloudflare') return value;
+	return null;
+}
+
+export function usesCloudflareReceive(
+	providerKind: EmailProviderKind,
+	receiveVia?: string | null
+): boolean {
+	return resolveReceiveVia(providerKind, receiveVia) === 'cloudflare';
+}
+
 /** Outbound rows stay queued until Resend webhooks land; Cloudflare send() is already accepted. */
 export function initialOutboundStatus(kind: EmailProviderKind): MailStatus {
 	switch (kind) {

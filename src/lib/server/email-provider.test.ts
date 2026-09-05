@@ -2,7 +2,14 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 import type { MailAddress } from '$lib/types';
 import type { EmailProvider } from './email-provider';
-import { inferProviderKindFromId, parseEmailProviderKind, parseMailDomains } from './email-provider';
+import {
+	inferProviderKindFromId,
+	parseEmailProviderKind,
+	parseMailDomains,
+	parseReceiveViaInput,
+	resolveReceiveVia,
+	usesCloudflareReceive
+} from './email-provider';
 import { sendOutboundEmail, type OutboundMailInput } from './send-mail';
 
 describe('parseMailDomains', () => {
@@ -38,6 +45,36 @@ describe('parseEmailProviderKind', () => {
 		assert.equal(parseEmailProviderKind('cloudflare'), 'cloudflare');
 		assert.equal(parseEmailProviderKind('both'), null);
 		assert.equal(parseEmailProviderKind('smtp'), null);
+	});
+});
+
+describe('resolveReceiveVia', () => {
+	test('Cloudflare-native domains always receive locally', () => {
+		assert.equal(resolveReceiveVia('cloudflare', 'resend'), 'cloudflare');
+		assert.equal(resolveReceiveVia('cloudflare', null), 'cloudflare');
+	});
+
+	test('Resend domains default to Resend inbound and can opt into Cloudflare', () => {
+		assert.equal(resolveReceiveVia('resend', undefined), 'resend');
+		assert.equal(resolveReceiveVia('resend', 'resend'), 'resend');
+		assert.equal(resolveReceiveVia('resend', 'cloudflare'), 'cloudflare');
+	});
+});
+
+describe('parseReceiveViaInput', () => {
+	test('accepts only the two inbound backends', () => {
+		assert.equal(parseReceiveViaInput('resend'), 'resend');
+		assert.equal(parseReceiveViaInput('cloudflare'), 'cloudflare');
+		assert.equal(parseReceiveViaInput('both'), null);
+		assert.equal(parseReceiveViaInput(true), null);
+	});
+});
+
+describe('usesCloudflareReceive', () => {
+	test('is true for Cloudflare domains and Resend domains that opted in', () => {
+		assert.equal(usesCloudflareReceive('cloudflare', 'resend'), true);
+		assert.equal(usesCloudflareReceive('resend', 'cloudflare'), true);
+		assert.equal(usesCloudflareReceive('resend', 'resend'), false);
 	});
 });
 

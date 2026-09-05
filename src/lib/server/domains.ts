@@ -1,9 +1,10 @@
 import type { D1Database } from '@cloudflare/workers-types';
-import type { Domain, MailAddress } from '$lib/types';
+import type { Domain, EmailProviderKind, MailAddress } from '$lib/types';
 import { parseMailboxSignature } from '$lib/email-signature';
 import {
 	inferProviderKindFromId,
 	ProviderError,
+	resolveReceiveVia,
 	type EmailProvider,
 	type ProviderDomain
 } from './email-provider';
@@ -19,6 +20,7 @@ type DomainRow = {
 	created_at: string;
 	synced_at: string | null;
 	provider_kind?: string | null;
+	receive_via?: string | null;
 };
 
 type AddressRow = {
@@ -47,7 +49,8 @@ function mapDomain(row: DomainRow): Domain {
 		catchall_user_id: row.catchall_user_id,
 		created_at: row.created_at,
 		synced_at: row.synced_at,
-		provider_kind: kind
+		provider_kind: kind,
+		receive_via: resolveReceiveVia(kind, row.receive_via)
 	};
 }
 
@@ -97,8 +100,15 @@ export async function getDomainByName(db: D1Database, name: string): Promise<Dom
 /**
  * Connect (or refresh) a provider domain. Keyed on the provider domain id so
  * re-running is safe and picks up newly verified DNS.
+ *
+ * `receiveVia` is only honored for Resend domains. Sync/refresh omit it so an
+ * existing Cloudflare-inbox choice is kept.
  */
-export async function upsertDomain(db: D1Database, domain: ProviderDomain): Promise<Domain> {
+export async function upsertDomain(
+	db: D1Database,
+	domain: ProviderDomain,
+	options?: { receiveVia?: EmailProviderKind | null }
+): Promise<Domain> {
 	const name = domain.name.toLowerCase();
 	const existing = await getDomainByName(db, name);
 	if (existing && existing.id !== domain.id) {
@@ -109,10 +119,14 @@ export async function upsertDomain(db: D1Database, domain: ProviderDomain): Prom
 		);
 	}
 
+	const current = existing?.id === domain.id ? existing : await getDomain(db, domain.id);
+	const receiveVia = resolveReceiveVia(domain.kind, options?.receiveVia ?? current?.receive_via);
+	const receivingEnabled = receiveVia === 'cloudflare' ? true : domain.receivingEnabled;
+
 	await db
 		.prepare(
-			`INSERT INTO domains (id, name, status, region, sending_enabled, receiving_enabled, provider_kind, synced_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+			`INSERT INTO domains (id, name, status, region, sending_enabled, receiving_enabled, provider_kind, receive_via, synced_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
 			 ON CONFLICT(id) DO UPDATE SET
 				name = excluded.name,
 				status = excluded.status,
@@ -120,6 +134,7 @@ export async function upsertDomain(db: D1Database, domain: ProviderDomain): Prom
 				sending_enabled = excluded.sending_enabled,
 				receiving_enabled = excluded.receiving_enabled,
 				provider_kind = excluded.provider_kind,
+				receive_via = excluded.receive_via,
 				synced_at = excluded.synced_at`
 		)
 		.bind(
@@ -128,13 +143,48 @@ export async function upsertDomain(db: D1Database, domain: ProviderDomain): Prom
 			domain.status,
 			domain.region ?? null,
 			domain.sendingEnabled ? 1 : 0,
-			domain.receivingEnabled ? 1 : 0,
-			domain.kind
+			receivingEnabled ? 1 : 0,
+			domain.kind,
+			receiveVia
 		)
 		.run();
 
 	const saved = await getDomain(db, domain.id);
 	if (!saved) throw new Error('Failed to connect domain');
+	return saved;
+}
+
+export async function setDomainReceiveVia(
+	db: D1Database,
+	domainId: string,
+	receiveVia: EmailProviderKind
+): Promise<Domain> {
+	const domain = await getDomain(db, domainId);
+	if (!domain) {
+		throw new ProviderError(404, 'domain_not_found', 'Domain is not connected');
+	}
+	if (domain.provider_kind !== 'resend') {
+		throw new ProviderError(
+			400,
+			'receive_via_unsupported',
+			'Only Resend domains can change the inbound provider'
+		);
+	}
+
+	const next = resolveReceiveVia('resend', receiveVia);
+	await db
+		.prepare(
+			`UPDATE domains SET receive_via = ?, receiving_enabled = CASE
+				WHEN ? = 'cloudflare' THEN 1
+				ELSE receiving_enabled
+			 END
+			 WHERE id = ?`
+		)
+		.bind(next, next, domainId)
+		.run();
+
+	const saved = await getDomain(db, domainId);
+	if (!saved) throw new Error('Failed to update inbound provider');
 	return saved;
 }
 
@@ -175,7 +225,8 @@ export async function syncDomains(db: D1Database, providers: EmailProvider[]): P
 		} else if (remoteByKind.has(domain.provider_kind)) {
 			await db
 				.prepare(
-					`UPDATE domains SET status = 'missing', sending_enabled = 0, receiving_enabled = 0,
+					`UPDATE domains SET status = 'missing', sending_enabled = 0,
+					 receiving_enabled = CASE WHEN receive_via = 'cloudflare' THEN 1 ELSE 0 END,
 					 synced_at = datetime('now') WHERE id = ?`
 				)
 				.bind(domain.id)
@@ -398,6 +449,25 @@ export async function resolveInboundRoute(
 	}
 
 	return null;
+}
+
+/** True when inbound for these recipients is claimed by Cloudflare Email Routing. */
+export async function recipientsReceiveViaCloudflare(
+	db: D1Database,
+	recipients: string[]
+): Promise<boolean> {
+	const names = new Set<string>();
+	for (const recipient of recipients) {
+		const domainName = recipient.split('@')[1]?.trim().toLowerCase();
+		if (domainName) names.add(domainName);
+	}
+
+	for (const name of names) {
+		const domain = await getDomainByName(db, name);
+		if (domain?.receive_via === 'cloudflare') return true;
+	}
+
+	return false;
 }
 
 export async function recordUnroutedEmail(

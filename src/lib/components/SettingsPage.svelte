@@ -758,7 +758,12 @@
 			</div>
 		</form>
 
-		{#if selectedDomain && !selectedDomain.receiving_enabled}
+		{#if selectedDomain && selectedDomain.provider_kind === 'resend' && selectedDomain.receive_via === 'cloudflare'}
+			<p class="hint">
+				<Icon name="information-line" size={14} />
+				{t('domains.receiveViaCloudflareHint')}
+			</p>
+		{:else if selectedDomain && !selectedDomain.receiving_enabled}
 			<p class="hint">
 				<Icon name="information-line" size={14} />
 				{t('settings.canSendNotReceive', { domain: selectedDomain.name })}
@@ -776,6 +781,9 @@
 					<span class="domain-name">{domain.name}</span>
 					<span class="caps">
 						<span class="chip">{providerName(domain.provider_kind)}</span>
+						{#if domain.provider_kind === 'resend' && domain.receive_via === 'cloudflare'}
+							<span class="chip chip-on">{t('settings.inboxViaCloudflare')}</span>
+						{/if}
 						<span class="chip" class:chip-on={domain.sending_enabled}>{t('settings.send')}</span>
 						<span class="chip" class:chip-on={domain.receiving_enabled}>{t('settings.receive')}</span>
 						<span class="chip" class:chip-ok={domain.status === 'verified'}>{domain.status}</span>
